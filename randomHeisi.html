@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>随机黑丝图片展示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background-color: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .status {
+            margin: 10px 0;
+            color: #666;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .images-container {
+            margin: 15px 0;
+            width: 100%;
+            max-width: 1200px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .image-item {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+            background-color: #f0f0f0;
+        }
+        .refresh-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1rem;
+            margin: 15px 0;
+            cursor: pointer;
+            border-radius: 50px;
+            transition: all 0.3s ease;
+            min-width: 200px;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        .refresh-btn:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+        }
+        .refresh-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 1.1rem;
+            color: #666;
+            width: 100%;
+        }
+        /* 针对小屏幕设备的优化 */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            h1 {
+                font-size: 1.3rem;
+                margin-bottom: 10px;
+            }
+            .images-container {
+                gap: 10px;
+            }
+            .image-item {
+                padding: 10px;
+                border-radius: 8px;
+            }
+            .refresh-btn {
+                padding: 12px 24px;
+                font-size: 0.9rem;
+                min-width: 160px;
+            }
+            .loading {
+                height: 150px;
+                font-size: 1rem;
+            }
+            .status {
+                font-size: 0.8rem;
+            }
+        }
+        /* 针对大屏幕设备的优化 */
+        @media (min-width: 768px) {
+            body {
+                padding: 30px;
+            }
+            h1 {
+                font-size: 2rem;
+            }
+            .images-container {
+                gap: 20px;
+            }
+            .image-item {
+                padding: 20px;
+            }
+            .refresh-btn {
+                padding: 18px 36px;
+                font-size: 1.1rem;
+                min-width: 240px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>随机黑丝图片展示</h1>
+    <div class="status" id="status">点击刷新按钮获取图片</div>
+        <button class="refresh-btn" onclick="fetchImages()">刷新图片</button>
+    <div class="images-container" id="imagesContainer">
+        <!-- 图片将通过JavaScript动态添加 -->
+    </div>
+
+
+    <script>
+        // 初始加载图片
+        fetchImages();
+
+        function fetchImages() {
+            const status = document.getElementById('status');
+            const imagesContainer = document.getElementById('imagesContainer');
+            const apiUrl = 'https://v2.xxapi.cn/api/heisi';
+            const imageCount = 4;
+
+            // 显示加载状态
+            status.textContent = '正在请求图片数据...';
+            
+            // 清空现有图片并添加加载状态
+            imagesContainer.innerHTML = '';
+            for (let i = 0; i < imageCount; i++) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'image-item';
+                loadingDiv.innerHTML = '<div class="loading">加载中...</div>';
+                imagesContainer.appendChild(loadingDiv);
+            }
+
+            // 批量请求图片
+            const requests = [];
+            for (let i = 0; i < imageCount; i++) {
+                requests.push(fetch(apiUrl).then(response => response.json()));
+            }
+
+            // 处理所有请求
+            Promise.all(requests)
+                .then(responses => {
+                    // 清空加载状态
+                    imagesContainer.innerHTML = '';
+                    
+                    let successCount = 0;
+                    
+                    // 处理每个响应
+                    responses.forEach((data, index) => {
+                        const imageItem = document.createElement('div');
+                        imageItem.className = 'image-item';
+                        
+                        if (data.code === 200) {
+                            successCount++;
+                            const imageUrl = data.data.trim(); // 去除可能的空格
+                            
+                            const img = document.createElement('img');
+                            img.src = imageUrl;
+                            img.alt = `黑丝图片 ${index + 1}`;
+                            
+                            // 图片加载失败处理
+                            img.onerror = () => {
+                                imageItem.innerHTML = '<div class="loading" style="color: #ff6b6b;">图片加载失败</div>';
+                            };
+                            
+                            imageItem.appendChild(img);
+                        } else {
+                            imageItem.innerHTML = `<div class="loading" style="color: #ff6b6b;">请求失败: ${data.msg}</div>`;
+                        }
+                        
+                        imagesContainer.appendChild(imageItem);
+                    });
+                    
+                    status.textContent = `成功加载 ${successCount}/${imageCount} 张图片`;
+                })
+                .catch(error => {
+                    console.error('请求错误:', error);
+                    status.textContent = '请求出错，请检查网络连接';
+                    
+                    // 显示错误状态
+                    imagesContainer.innerHTML = '';
+                    for (let i = 0; i < imageCount; i++) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'image-item';
+                        errorDiv.innerHTML = '<div class="loading" style="color: #ff6b6b;">请求出错，请检查网络连接</div>';
+                        imagesContainer.appendChild(errorDiv);
+                    }
+                });
+        }
+    </script>
+</body>
+</html>
