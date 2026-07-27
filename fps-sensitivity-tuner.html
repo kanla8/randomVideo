@@ -1,0 +1,2033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPS 灵敏度调试助手</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0a0a0f;color:#e0e0e0;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 50% 0%,rgba(233,69,96,0.08) 0%,transparent 60%),radial-gradient(ellipse at 80% 100%,rgba(15,52,96,0.12) 0%,transparent 60%);pointer-events:none;z-index:0}
+
+.container{max-width:1100px;margin:0 auto;padding:20px;position:relative;z-index:1}
+
+/* Header */
+.header{text-align:center;padding:40px 20px 30px}
+.header h1{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:800;background:linear-gradient(135deg,#e94560,#ff6b6b,#ffd93d);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2px;margin-bottom:8px;text-shadow:none;filter:drop-shadow(0 0 20px rgba(233,69,96,0.3))}
+.header .subtitle{font-size:1rem;color:#8899aa;letter-spacing:3px;text-transform:uppercase}
+
+/* Cards */
+.card{background:#12121a;border:1px solid #1e1e30;border-radius:16px;padding:28px;margin-bottom:20px;box-shadow:0 4px 30px rgba(0,0,0,0.4);transition:border-color 0.3s,box-shadow 0.3s}
+.card.active{border-color:#e94560;box-shadow:0 4px 30px rgba(233,69,96,0.15)}
+.card.done{border-color:#16c79a;box-shadow:0 4px 20px rgba(22,199,154,0.1)}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.step-badge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;flex-shrink:0;background:#1e1e30;color:#667;transition:all 0.3s}
+.card.active .step-badge{background:#e94560;color:#fff;box-shadow:0 0 15px rgba(233,69,96,0.4)}
+.card.done .step-badge{background:#16c79a;color:#fff}
+.card-title{font-size:1.2rem;font-weight:700;color:#ccc}
+.card.active .card-title{color:#fff}
+.card-body{display:none}
+.card.active .card-body{display:block}
+
+/* DPI */
+.dpi-presets{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.dpi-preset{padding:8px 18px;border-radius:8px;border:1px solid #2a2a40;background:#1a1a28;color:#aab;cursor:pointer;font-size:0.9rem;font-weight:600;transition:all 0.2s}
+.dpi-preset:hover{border-color:#e94560;color:#fff}
+.dpi-preset.selected{background:#e94560;border-color:#e94560;color:#fff}
+.dpi-input-group{display:flex;align-items:center;gap:12px}
+.dpi-input-group input{width:140px;padding:12px 16px;background:#1a1a28;border:1px solid #2a2a40;border-radius:10px;color:#fff;font-size:1.2rem;font-weight:700;text-align:center;outline:none;transition:border-color 0.2s}
+.dpi-input-group input:focus{border-color:#e94560}
+.dpi-input-group .label-text{color:#889;font-size:0.95rem}
+.dpi-hint{color:#667;font-size:0.82rem;margin-top:6px}
+
+/* Game Selection */
+.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.game-card{border:2px solid #1e1e30;border-radius:14px;padding:16px;cursor:pointer;transition:all 0.25s;background:#161620;text-align:center;position:relative;overflow:hidden}
+.game-card:hover{border-color:#3a3a55;transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,0,0,0.3)}
+.game-card.selected{border-color:#e94560;background:#1a1020;box-shadow:0 0 20px rgba(233,69,96,0.2)}
+.game-card .game-icon{font-size:2rem;margin-bottom:8px}
+.game-card .game-name{font-weight:700;font-size:1rem;color:#ddd}
+.game-card .game-ttk{font-size:0.75rem;color:#667;margin-top:4px;padding:2px 10px;border-radius:10px;display:inline-block}
+.game-card .game-ttk.short{background:rgba(233,69,96,0.15);color:#e94560}
+.game-card .game-ttk.long{background:rgba(22,199,154,0.15);color:#16c79a}
+.game-card .check-mark{position:absolute;top:8px;right:10px;color:#e94560;font-size:1.2rem;display:none}
+.game-card.selected .check-mark{display:block}
+.ttk-section{margin-bottom:20px}
+.ttk-label{font-size:0.85rem;color:#667;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;display:block}
+
+/* FOV */
+.fov-section{margin-top:16px;padding-top:16px;border-top:1px solid #1e1e30}
+.fov-section label{color:#aab;font-size:0.9rem;display:block;margin-bottom:10px}
+.fov-slider-group{display:flex;align-items:center;gap:16px}
+.fov-slider-group input[type=range]{flex:1;accent-color:#e94560;height:6px}
+.fov-value{font-size:1.5rem;font-weight:700;color:#e94560;min-width:50px;text-align:center}
+.fov-presets{display:flex;gap:8px;margin-top:10px}
+.fov-preset{padding:4px 12px;border-radius:6px;border:1px solid #2a2a40;background:#1a1a28;color:#aab;cursor:pointer;font-size:0.8rem;transition:all 0.2s}
+.fov-preset:hover,.fov-preset.active{border-color:#e94560;color:#e94560}
+
+/* Buttons */
+.btn{padding:12px 28px;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;transition:all 0.2s;border:none;outline:none;letter-spacing:1px}
+.btn-primary{background:linear-gradient(135deg,#e94560,#c23152);color:#fff;box-shadow:0 4px 15px rgba(233,69,96,0.3)}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(233,69,96,0.4)}
+.btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+.btn-secondary{background:#1e1e30;color:#aab;border:1px solid #2a2a40}
+.btn-secondary:hover{border-color:#e94560;color:#fff}
+.btn-success{background:linear-gradient(135deg,#16c79a,#0e8a6a);color:#fff;box-shadow:0 4px 15px rgba(22,199,154,0.3)}
+.btn-row{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+
+/* Test Arena */
+.test-arena{position:relative;background:#0d0d15;border-radius:12px;overflow:hidden;border:1px solid #1e1e30}
+.test-canvas-wrap{position:relative;width:100%;aspect-ratio:16/10;max-height:520px;cursor:none}
+.test-canvas-wrap canvas{display:block;width:100%;height:100%}
+.crosshair{position:fixed;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);opacity:0.9;display:none}
+.crosshair::before,.crosshair::after{content:'';position:absolute;background:#00ff88}
+.crosshair::before{width:20px;height:2px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.crosshair::after{width:2px;height:20px;top:50%;left:50%;transform:translate(-50%,-50%)}
+.crosshair .gap{position:absolute;width:6px;height:6px;background:transparent;border:1px solid transparent;top:50%;left:50%;transform:translate(-50%,-50%)}
+.test-overlay{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:10}
+.countdown-text{font-size:6rem;font-weight:900;color:#fff;text-shadow:0 0 40px rgba(233,69,96,0.6);animation:pulse 0.5s ease-out}
+@keyframes pulse{0%{transform:scale(1.4);opacity:0}100%{transform:scale(1);opacity:1}}
+.test-stats{position:absolute;top:12px;right:16px;display:flex;gap:16px;font-size:0.85rem;color:#aab;pointer-events:none;z-index:5;background:rgba(0,0,0,0.6);padding:8px 14px;border-radius:8px}
+.test-stats span{font-weight:700;color:#fff}
+.test-timer-bar{position:absolute;bottom:0;left:0;height:3px;background:#e94560;transition:width 0.1s linear;z-index:5}
+.test-instruction{text-align:center;color:#889;font-size:0.9rem;margin-top:8px}
+
+/* Test List */
+.test-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:10px}
+.test-item{border:1px solid #1e1e30;border-radius:12px;padding:16px;background:#161620;transition:all 0.2s}
+.test-item:hover{border-color:#3a3a55}
+.test-item.completed{border-color:#16c79a;background:rgba(22,199,154,0.05)}
+.test-item .test-name{font-weight:700;color:#ddd;margin-bottom:6px}
+.test-item .test-desc{font-size:0.82rem;color:#778;margin-bottom:10px;line-height:1.4}
+.test-item .test-score{font-size:0.85rem;color:#16c79a;font-weight:600;display:none}
+.test-item.completed .test-score{display:block}
+.test-item .test-trigger{font-size:0.75rem;color:#e94560;margin-top:6px;font-style:italic}
+
+/* Results */
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.result-card{background:#161620;border:1px solid #2a2a40;border-radius:14px;padding:20px}
+.result-card .game-title{font-size:1.1rem;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid #1e1e30;display:flex;align-items:center;gap:8px}
+.result-card .game-title .ttk-tag{font-size:0.7rem;padding:2px 8px;border-radius:8px}
+.result-card .game-title .ttk-tag.short{background:rgba(233,69,96,0.2);color:#e94560}
+.result-card .game-title .ttk-tag.long{background:rgba(22,199,154,0.2);color:#16c79a}
+.result-table{width:100%;border-collapse:collapse}
+.result-table td{padding:8px 10px;border-bottom:1px solid #161620;font-size:0.9rem}
+.result-table td:first-child{color:#889}
+.result-table td:last-child{color:#fff;font-weight:600;text-align:right;font-family:'Cascadia Code','Fira Code',monospace}
+.sens-value{color:#ffd93d!important;font-size:1.1rem!important}
+.copy-btn{padding:3px 10px;border-radius:5px;border:1px solid #2a2a40;background:transparent;color:#667;cursor:pointer;font-size:0.75rem;margin-left:6px;transition:all 0.2s}
+.copy-btn:hover{border-color:#e94560;color:#e94560}
+.cm360-badge{display:inline-block;padding:4px 12px;border-radius:6px;font-size:0.8rem;font-weight:600;margin-top:8px}
+.cm360-vlow{background:rgba(155,89,182,0.2);color:#9b59b6}
+.cm360-low{background:rgba(52,152,219,0.2);color:#3498db}
+.cm360-mlow{background:rgba(46,204,113,0.2);color:#2ecc71}
+.cm360-med{background:rgba(241,196,15,0.2);color:#f1c40f}
+.cm360-mhigh{background:rgba(230,126,34,0.2);color:#e67e22}
+.cm360-high{background:rgba(231,76,60,0.2);color:#e74c3c}
+.cm360-vhigh{background:rgba(192,57,43,0.2);color:#c0392b}
+
+/* Advice */
+.advice-list{display:flex;flex-direction:column;gap:12px}
+.advice-item{padding:14px 18px;border-radius:10px;border:1px solid #2a2a40;background:#161620;display:flex;align-items:flex-start;gap:12px}
+.advice-icon{font-size:1.5rem;flex-shrink:0}
+.advice-content{flex:1}
+.advice-content .advice-title{font-weight:700;color:#ddd;margin-bottom:4px}
+.advice-content .advice-text{color:#889;font-size:0.88rem;line-height:1.5}
+
+/* Hidden */
+.hidden{display:none!important}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#0a0a0f}
+::-webkit-scrollbar-thumb{background:#2a2a40;border-radius:3px}
+
+/* Responsive */
+@media(max-width:768px){
+  .container{padding:12px}
+  .header h1{font-size:1.6rem}
+  .test-canvas-wrap{aspect-ratio:4/3}
+  .game-grid{grid-template-columns:repeat(2,1fr)}
+  .results-grid{grid-template-columns:1fr}
+}
+
+/* Flash */
+.flash-hit{animation:flashGreen 0.3s ease-out}
+.flash-miss{animation:flashRed 0.3s ease-out}
+@keyframes flashGreen{0%{box-shadow:inset 0 0 60px rgba(22,199,154,0.6)}100%{box-shadow:inset 0 0 0 transparent}}
+@keyframes flashRed{0%{box-shadow:inset 0 0 60px rgba(233,69,96,0.6)}100%{box-shadow:inset 0 0 0 transparent}}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <h1>FPS 灵敏度调试助手</h1>
+    <p class="subtitle">科学测试 · 精准调校 · 游戏适配</p>
+  </div>
+
+  <!-- Step 1: DPI -->
+  <div class="card active" id="step-dpi">
+    <div class="card-header">
+      <div class="step-badge">1</div>
+      <div class="card-title">鼠标 DPI 设置</div>
+    </div>
+    <div class="card-body">
+      <div class="dpi-input-group">
+        <span class="label-text">我的鼠标 DPI：</span>
+        <input type="number" id="dpi-input" value="800" min="100" max="36000" step="50">
+        <span class="label-text">DPI</span>
+      </div>
+      <div class="dpi-presets">
+        <button class="dpi-preset" onclick="selectDPI(400)">400</button>
+        <button class="dpi-preset selected" onclick="selectDPI(800)">800</button>
+        <button class="dpi-preset" onclick="selectDPI(1600)">1600</button>
+        <button class="dpi-preset" onclick="selectDPI(3200)">3200</button>
+      </div>
+      <p class="dpi-hint">在鼠标驱动软件（如 Logitech G HUB、Razer Synapse）中查看你的 DPI 设置</p>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goToStep(2)">下一步：选择游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Game Selection + FOV -->
+  <div class="card" id="step-game">
+    <div class="card-header">
+      <div class="step-badge">2</div>
+      <div class="card-title">选择目标游戏</div>
+    </div>
+    <div class="card-body">
+      <div class="ttk-section">
+        <span class="ttk-label">短 TTK — 战术射击</span>
+        <div class="game-grid" id="short-ttk-grid"></div>
+      </div>
+      <div class="ttk-section">
+        <span class="ttk-label">长 TTK — 追踪射击</span>
+        <div class="game-grid" id="long-ttk-grid"></div>
+      </div>
+      <div class="fov-section hidden" id="fov-section">
+        <label>FOV 视野设置（仅 APEX Legends 需要）：</label>
+        <div class="fov-slider-group">
+          <input type="range" id="fov-slider" min="70" max="110" value="110" step="2">
+          <span class="fov-value" id="fov-display">110</span>
+        </div>
+        <div class="fov-presets">
+          <button class="fov-preset" onclick="setFOV(90)">90</button>
+          <button class="fov-preset" onclick="setFOV(100)">100</button>
+          <button class="fov-preset active" onclick="setFOV(110)">110 (推荐)</button>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(1)">上一步</button>
+        <button class="btn btn-primary" id="btn-start-tests" disabled onclick="goToStep(3)">下一步：开始测试</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Tests -->
+  <div class="card" id="step-tests">
+    <div class="card-header">
+      <div class="step-badge">3</div>
+      <div class="card-title">瞄准能力测试</div>
+    </div>
+    <div class="card-body">
+      <div class="test-list" id="test-list"></div>
+      <div class="test-arena hidden" id="test-arena">
+        <div class="test-canvas-wrap" id="test-canvas-wrap">
+          <canvas id="test-canvas"></canvas>
+          <div class="test-overlay" id="test-overlay"></div>
+          <div class="test-stats" id="test-stats"></div>
+          <div class="test-timer-bar" id="test-timer-bar"></div>
+        </div>
+        <p class="test-instruction" id="test-instruction"></p>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(2)">上一步</button>
+        <button class="btn btn-primary" id="btn-see-results" disabled onclick="goToStep(4)">查看灵敏度结果</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Results -->
+  <div class="card" id="step-results">
+    <div class="card-header">
+      <div class="step-badge">4</div>
+      <div class="card-title">专属灵敏度设置</div>
+    </div>
+    <div class="card-body">
+      <div class="results-grid" id="results-grid"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(3)">重新测试</button>
+        <button class="btn btn-primary" onclick="goToStep(5)">查看调校建议</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 5: Advice -->
+  <div class="card" id="step-advice">
+    <div class="card-header">
+      <div class="step-badge">5</div>
+      <div class="card-title">微调与提升建议</div>
+    </div>
+    <div class="card-body">
+      <div class="advice-list" id="advice-list"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(4)">返回结果</button>
+        <button class="btn btn-primary" onclick="resetAll()">重新开始</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crosshair element -->
+  <div class="crosshair" id="crosshair"><div class="gap"></div></div>
+</div>
+
+<script>
+// ==================== GAME DATABASE ====================
+const GAME_DB = [
+  { id:'cs2', name:'CS2', icon:'🔫', ttk:'short', yaw:0.022, fov:90, fovType:'fixed', sensDecimals:2, sensRange:[0.01,8],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'游戏设置 → 键盘/鼠标 → 鼠标灵敏度'},
+      {key:'zoom',label:'开镜灵敏度 (AWP/步枪)',desc:'游戏设置 → 键盘/鼠标 → 开镜灵敏度倍率',defaultVal:1.0}
+    ]},
+  { id:'valorant', name:'Valorant', icon:'⚡', ttk:'short', yaw:0.07, fov:103, fovType:'fixed', sensDecimals:3, sensRange:[0.01,10],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 鼠标灵敏度'},
+      {key:'scoped',label:'开镜灵敏度',desc:'设置 → 控制 → 聚焦/瞄准灵敏度倍率',defaultVal:1.0}
+    ]},
+  { id:'apex', name:'APEX Legends', icon:'🦾', ttk:'long', yaw:0.022, fov:110, fovType:'slider', sensDecimals:1, sensRange:[0.1,20],
+    fovRange:[70,110], needsFOV:true,
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 鼠标/键盘 → 鼠标灵敏度'},
+      {key:'ads',label:'ADS 瞄准灵敏度',desc:'设置 → 鼠标/键盘 → ADS鼠标灵敏度倍率',defaultVal:1.0}
+    ],
+    perOptic:true, opticScales:{'1x':1.0,'2x':0.9,'3x':0.75,'4x':0.55,'6x':0.40,'8x':0.30,'10x':0.20} },
+  { id:'ow2', name:'守望先锋2', icon:'🛡️', ttk:'long', yaw:0.0066, fov:103, fovType:'fixed', sensDecimals:2, sensRange:[0.01,100],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 鼠标灵敏度'},
+      {key:'scope_ana',label:'开镜灵敏度 (安娜/艾什)',desc:'设置 → 控制 → 英雄 → 安娜 → 开镜时相对灵敏度',defaultVal:37.89},
+      {key:'scope_widow',label:'开镜灵敏度 (黑百合)',desc:'设置 → 控制 → 英雄 → 黑百合 → 开镜时相对灵敏度',defaultVal:37.89}
+    ]},
+  { id:'r6s', name:'彩虹六号：围攻', icon:'🎯', ttk:'short', yaw:0.02, fov:74, fovType:'fixed', sensDecimals:0, sensRange:[1,100],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 鼠标灵敏度水平'},
+      {key:'ads',label:'ADS 灵敏度',desc:'设置 → 控制 → ADS灵敏度',defaultVal:50}
+    ]},
+  { id:'cod_wz', name:'CoD: 战区', icon:'💥', ttk:'mixed', yaw:0.0066, fov:100, fovType:'fixed', sensDecimals:2, sensRange:[0.01,100],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制器 → 鼠标灵敏度'},
+      {key:'ads_low',label:'ADS 低倍率',desc:'低倍镜开镜灵敏度倍率',defaultVal:1.0},
+      {key:'ads_high',label:'ADS 高倍率',desc:'高倍镜开镜灵敏度倍率',defaultVal:1.0}
+    ]}
+];
+
+// ==================== STATE ====================
+let state = {
+  currentStep: 1,
+  dpi: 800,
+  selectedGameId: null,
+  fov: 110,
+  testResults: {},
+  allTestsDone: false,
+  mousepadCm: 45
+};
+
+// ==================== SENSITIVITY ENGINE ====================
+function cm360(dpi, sens, yaw) {
+  return (360 * 2.54) / (dpi * sens * yaw);
+}
+function sensFromCm360(dpi, cm, yaw) {
+  return (360 * 2.54) / (dpi * cm * yaw);
+}
+function crossConvert(srcDPI, srcSens, srcYaw, tgtDPI, tgtYaw) {
+  return (srcDPI * srcSens * srcYaw) / (tgtDPI * tgtYaw);
+}
+function classifyCm360(cm) {
+  if (cm > 60) return {label:'超低灵敏度',cls:'cm360-vlow'};
+  if (cm > 45) return {label:'低灵敏度',cls:'cm360-low'};
+  if (cm > 35) return {label:'中低灵敏度',cls:'cm360-mlow'};
+  if (cm > 28) return {label:'中等灵敏度',cls:'cm360-med'};
+  if (cm > 22) return {label:'中高灵敏度',cls:'cm360-mhigh'};
+  if (cm > 18) return {label:'高灵敏度',cls:'cm360-high'};
+  return {label:'超高灵敏度',cls:'cm360-vhigh'};
+}
+function generateSensitivity(game, baseCm360) {
+  let adjusted = baseCm360;
+  const tr = state.testResults.tracking || {};
+  const fl = state.testResults.flick || {};
+  const gs = state.testResults.gridshot || {};
+  const ma = state.testResults.micro || {};
+  const rt = state.testResults.reactive || {};
+  const sc = state.testResults.speedcurve || {};
+
+  // Adjust from test performance
+  if (tr.accuracy > 80 && gs.hps > 3) adjusted *= 0.88;
+  else if (tr.accuracy > 70 && gs.hps > 2.5) adjusted *= 0.93;
+  if (tr.accuracy < 50) adjusted *= 1.15;
+  else if (tr.accuracy < 60) adjusted *= 1.08;
+  if (fl.accuracy > 85 && fl.avgReaction < 400) adjusted *= 0.93;
+  if (ma.avgMissDist > 35) adjusted *= 1.1;
+  else if (ma.avgMissDist > 25) adjusted *= 1.05;
+
+  // Reactive tracking: sudden direction change capability = key for long TTK
+  if (rt.accuracy !== undefined) {
+    if (rt.accuracy < 40) adjusted *= 1.12;
+    else if (rt.accuracy < 55) adjusted *= 1.06;
+    else if (rt.accuracy > 75) adjusted *= 0.92;
+  }
+
+  // Speed-accuracy curve: if user's accuracy drops sharply at far targets
+  if (sc.overallAcc !== undefined && sc.accuracyDrop) {
+    if (sc.accuracyDrop > 20) adjusted *= 1.08; // big drop at distance = need lower sens
+    else if (sc.accuracyDrop < 8) adjusted *= 0.94; // consistent across distances = can handle higher sens
+  }
+
+  // Game-specific TTK adjustment
+  if (game.ttk === 'short') adjusted *= 1.15;
+  else if (game.ttk === 'long') adjusted *= 0.82;
+  else adjusted *= 0.95;
+
+  adjusted = Math.max(15, Math.min(80, adjusted));
+
+  const hipfireSens = sensFromCm360(state.dpi, adjusted, game.yaw);
+  const clampedSens = Math.max(game.sensRange[0], Math.min(game.sensRange[1], hipfireSens));
+  const finalCm = cm360(state.dpi, clampedSens, game.yaw);
+  const classification = classifyCm360(finalCm);
+
+  const result = {
+    game: game,
+    cm360: finalCm,
+    eDPI: Math.round(state.dpi * clampedSens),
+    hipfire: +clampedSens.toFixed(game.sensDecimals),
+    classification: classification,
+    settings: []
+  };
+
+  game.settings.forEach(s => {
+    if (s.key === 'hipfire') {
+      result.settings.push({...s, value: result.hipfire});
+    } else if (s.key === 'zoom' && game.id === 'cs2') {
+      result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'scoped' && game.id === 'valorant') {
+      result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'ads' && game.id === 'apex') {
+      result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'scope_ana' && game.id === 'ow2') {
+      result.settings.push({...s, value: 37.89});
+    } else if (s.key === 'scope_widow' && game.id === 'ow2') {
+      result.settings.push({...s, value: 37.89});
+    } else if (s.key === 'ads' && game.id === 'r6s') {
+      result.settings.push({...s, value: 50});
+    } else if (s.key === 'ads_low' && game.id === 'cod_wz') {
+      result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'ads_high' && game.id === 'cod_wz') {
+      result.settings.push({...s, value: 1.0});
+    }
+  });
+
+  // APEX per-optic
+  if (game.perOptic) {
+    result.perOpticMultipliers = [];
+    const opticScales = game.opticScales;
+    for (const [label, fovScale] of Object.entries(opticScales)) {
+      const ideal = 1 / fovScale;
+      const capped = Math.min(2.0, +ideal.toFixed(3));
+      result.perOpticMultipliers.push({
+        optic: label,
+        fovScale: fovScale,
+        multiplier: capped,
+        capped: ideal > 2.0
+      });
+    }
+  }
+
+  return result;
+}
+
+// ==================== UI MANAGER ====================
+function goToStep(n) {
+  if (n === 2 && !validateDPI()) return;
+  if (n === 3 && !state.selectedGameId) { alert('请先选择一个游戏'); return; }
+  if (n === 4 && !state.allTestsDone) { alert('请完成所有测试'); return; }
+
+  document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+  const stepMap = {1:'step-dpi',2:'step-game',3:'step-tests',4:'step-results',5:'step-advice'};
+  const el = document.getElementById(stepMap[n]);
+  if (el) el.classList.add('active');
+
+  // Mark previous steps as done
+  for (let i = 1; i < n; i++) {
+    const prev = document.getElementById(stepMap[i]);
+    if (prev) { prev.classList.remove('active'); prev.classList.add('done'); }
+  }
+  for (let i = n; i <= 5; i++) {
+    const next = document.getElementById(stepMap[i]);
+    if (next) next.classList.remove('done');
+  }
+
+  state.currentStep = n;
+  if (n === 3) renderTestList();
+  if (n === 4) renderResults();
+  if (n === 5) renderAdvice();
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function validateDPI() {
+  const val = parseInt(document.getElementById('dpi-input').value);
+  if (isNaN(val) || val < 100 || val > 36000) {
+    alert('请输入有效的 DPI 值 (100-36000)');
+    return false;
+  }
+  state.dpi = val;
+  return true;
+}
+
+function selectDPI(dpi) {
+  document.getElementById('dpi-input').value = dpi;
+  state.dpi = dpi;
+  document.querySelectorAll('.dpi-preset').forEach(b => b.classList.remove('selected'));
+  event.target.classList.add('selected');
+}
+
+// ==================== GAME SELECTION UI ====================
+function renderGameSelection() {
+  const shortGrid = document.getElementById('short-ttk-grid');
+  const longGrid = document.getElementById('long-ttk-grid');
+  shortGrid.innerHTML = '';
+  longGrid.innerHTML = '';
+
+  GAME_DB.forEach(game => {
+    const card = document.createElement('div');
+    card.className = 'game-card' + (state.selectedGameId === game.id ? ' selected' : '');
+    card.dataset.gameId = game.id;
+    card.innerHTML = `
+      <span class="check-mark">✓</span>
+      <div class="game-icon">${game.icon}</div>
+      <div class="game-name">${game.name}</div>
+      <span class="game-ttk ${game.ttk}">${game.ttk==='short'?'短TTK':game.ttk==='long'?'长TTK':'混合TTK'}</span>
+    `;
+    card.onclick = () => selectGame(game);
+    (game.ttk === 'short' ? shortGrid : longGrid).appendChild(card);
+  });
+}
+
+function selectGame(game) {
+  state.selectedGameId = game.id;
+  state.fov = game.fov;
+  document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.game-card[data-game-id="${game.id}"]`)?.classList.add('selected');
+
+  const fovSection = document.getElementById('fov-section');
+  if (game.needsFOV) {
+    fovSection.classList.remove('hidden');
+    document.getElementById('fov-slider').value = game.fov;
+    document.getElementById('fov-display').textContent = game.fov;
+  } else {
+    fovSection.classList.add('hidden');
+  }
+
+  document.getElementById('btn-start-tests').disabled = false;
+}
+
+function setFOV(val) {
+  state.fov = val;
+  document.getElementById('fov-slider').value = val;
+  document.getElementById('fov-display').textContent = val;
+  document.querySelectorAll('.fov-preset').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+document.getElementById('fov-slider').addEventListener('input', function() {
+  state.fov = parseInt(this.value);
+  document.getElementById('fov-display').textContent = this.value;
+  document.querySelectorAll('.fov-preset').forEach(b => b.classList.remove('active'));
+});
+
+document.getElementById('dpi-input').addEventListener('input', function() {
+  state.dpi = parseInt(this.value) || 800;
+  document.querySelectorAll('.dpi-preset').forEach(b => b.classList.remove('selected'));
+});
+
+// ==================== TEST SYSTEM ====================
+const TEST_DEFS = [
+  { id:'tracking', name:'追踪测试', desc:'跟随移动目标，鼠标悬停即可，无需点击', trigger:'鼠标悬停触发', icon:'👁️', needClick:false },
+  { id:'flick', name:'定位测试', desc:'快速瞄准随机出现的靶标并点击射击', trigger:'鼠标点击触发', icon:'🎯', needClick:true },
+  { id:'turn360', name:'360° 转身测试', desc:'在鼠标垫上横向滑动鼠标，测算 cm/360', trigger:'鼠标移动触发', icon:'🔄', needClick:false },
+  { id:'gridshot', name:'网格速射测试', desc:'3×3网格内快速点击亮起的靶标', trigger:'鼠标点击触发', icon:'⚡', needClick:true },
+  { id:'micro', name:'微调精度测试', desc:'微小目标精准定位，测试精细操控能力', trigger:'鼠标点击触发', icon:'🔬', needClick:true },
+  { id:'reactive', name:'反应式追踪测试', desc:'追踪突然变向的目标，模拟敌人身法闪避', trigger:'鼠标悬停触发', icon:'💨', needClick:false },
+  { id:'speedcurve', name:'速度-精度曲线测试', desc:'不同距离靶标测试，找到你的精度临界点', trigger:'鼠标点击触发', icon:'📈', needClick:true }
+];
+
+function renderTestList() {
+  const container = document.getElementById('test-list');
+  container.innerHTML = '';
+  TEST_DEFS.forEach(t => {
+    const div = document.createElement('div');
+    div.className = 'test-item' + (state.testResults[t.id] ? ' completed' : '');
+    div.id = 'test-item-' + t.id;
+    div.innerHTML = `
+      <div class="test-name">${t.icon} ${t.name}</div>
+      <div class="test-desc">${t.desc}</div>
+      <div class="test-trigger">触发方式：${t.trigger}</div>
+      <div class="test-score" id="test-score-${t.id}">${formatTestScore(t.id)}</div>
+      <button class="btn btn-primary" style="margin-top:10px;padding:8px 16px;font-size:0.85rem" id="btn-test-${t.id}" onclick="startTest('${t.id}')">
+        ${state.testResults[t.id] ? '重新测试' : '开始测试'}
+      </button>
+    `;
+    container.appendChild(div);
+  });
+  updateTestCompletion();
+}
+
+function formatTestScore(testId) {
+  const r = state.testResults[testId];
+  if (!r) return '';
+  switch (testId) {
+    case 'tracking': return `追踪精度: ${r.accuracy.toFixed(1)}%`;
+    case 'flick': return `命中: ${r.hits} | 精度: ${r.accuracy.toFixed(1)}% | 反应: ${r.avgReaction.toFixed(0)}ms`;
+    case 'turn360': return `cm/360: ${r.cm360.toFixed(1)} cm`;
+    case 'gridshot': return `命中: ${r.hits} | 精度: ${r.accuracy.toFixed(1)}% | 速度: ${r.hps.toFixed(1)} HPS`;
+    case 'micro': return `精度: ${r.accuracy.toFixed(1)}% | 平均偏差: ${r.avgMissDist.toFixed(1)}px`;
+    case 'reactive': return `追踪精度: ${r.accuracy.toFixed(1)}% | 变向反应: ${r.dirChanges}次`;
+    case 'speedcurve': return `综合精度: ${r.overallAcc.toFixed(1)}% | 最佳距离: ${r.bestRange}`;
+    default: return '';
+  }
+}
+
+function updateTestCompletion() {
+  state.allTestsDone = TEST_DEFS.every(t => state.testResults[t.id]);
+  document.getElementById('btn-see-results').disabled = !state.allTestsDone;
+}
+
+// ==================== TEST BASE ====================
+let currentTest = null;
+let testRunning = false;
+
+function startTest(testId) {
+  if (testRunning) return;
+  const tdef = TEST_DEFS.find(t => t.id === testId);
+  if (!tdef) return;
+
+  testRunning = true;
+  document.getElementById('test-list').classList.add('hidden');
+  document.getElementById('test-arena').classList.remove('hidden');
+  document.getElementById('test-instruction').textContent = tdef.name + ' — ' + tdef.trigger;
+
+  // Disable all test buttons
+  document.querySelectorAll('[id^="btn-test-"]').forEach(b => b.disabled = true);
+
+  const canvasWrap = document.getElementById('test-canvas-wrap');
+  const canvas = document.getElementById('test-canvas');
+  canvas.width = canvasWrap.clientWidth;
+  canvas.height = canvasWrap.clientHeight;
+
+  const crosshair = document.getElementById('crosshair');
+  crosshair.style.display = 'block';
+
+  switch (testId) {
+    case 'tracking': currentTest = new TrackingTest(canvas, crosshair, canvasWrap); break;
+    case 'flick': currentTest = new FlickTest(canvas, crosshair, canvasWrap); break;
+    case 'turn360': currentTest = new Turn360Test(canvas, crosshair, canvasWrap); break;
+    case 'gridshot': currentTest = new GridshotTest(canvas, crosshair, canvasWrap); break;
+    case 'micro': currentTest = new MicroAdjustTest(canvas, crosshair, canvasWrap); break;
+    case 'reactive': currentTest = new ReactiveTrackingTest(canvas, crosshair, canvasWrap); break;
+    case 'speedcurve': currentTest = new SpeedAccuracyTest(canvas, crosshair, canvasWrap); break;
+  }
+
+  if (currentTest) currentTest.start(tdef);
+}
+
+function onTestComplete(testId, results) {
+  state.testResults[testId] = results;
+  testRunning = false;
+  currentTest = null;
+  document.getElementById('crosshair').style.display = 'none';
+  document.getElementById('test-arena').classList.add('hidden');
+  document.getElementById('test-list').classList.remove('hidden');
+  document.querySelectorAll('[id^="btn-test-"]').forEach(b => b.disabled = false);
+  renderTestList();
+  updateTestCompletion();
+}
+
+class TestBase {
+  constructor(canvas, crosshair, wrap) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.crosshair = crosshair;
+    this.wrap = wrap;
+    this.duration = 10; // seconds
+    this.running = false;
+    this.startTime = 0;
+    this.boundMouseMove = this.onMouseMove.bind(this);
+    this.boundMouseDown = this.onMouseDown.bind(this);
+    this.boundMouseUp = this.onMouseUp.bind(this);
+  }
+
+  async start(tdef) {
+    this.tdef = tdef;
+    this.running = false;
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Countdown
+    const overlay = document.getElementById('test-overlay');
+    const countdowns = ['3', '2', '1', 'GO!'];
+    for (const txt of countdowns) {
+      overlay.innerHTML = `<span class="countdown-text">${txt}</span>`;
+      overlay.style.display = 'flex';
+      await sleep(600);
+      overlay.innerHTML = '';
+      await sleep(200);
+    }
+    overlay.style.display = 'none';
+
+    // Start tracking
+    document.addEventListener('mousemove', this.boundMouseMove);
+    document.addEventListener('mousedown', this.boundMouseDown);
+    document.addEventListener('mouseup', this.boundMouseUp);
+
+    this.running = true;
+    this.startTime = performance.now();
+    this.init();
+    this.loop();
+  }
+
+  init() {}
+  update() {}
+  render() {}
+  onMouseMove(e) { this.mx = e.clientX; this.my = e.clientY; }
+  onMouseDown(e) {}
+  onMouseUp(e) {}
+
+  loop() {
+    if (!this.running) return;
+    const elapsed = (performance.now() - this.startTime) / 1000;
+    if (elapsed >= this.duration) {
+      this.running = false;
+      this.finish();
+      return;
+    }
+    this.update(elapsed);
+    this.render(elapsed);
+    this.updateTimer(elapsed);
+    requestAnimationFrame(() => this.loop());
+  }
+
+  updateTimer(elapsed) {
+    const remaining = Math.max(0, this.duration - elapsed);
+    const pct = (elapsed / this.duration) * 100;
+    document.getElementById('test-stats').innerHTML = `<span>⏱ ${remaining.toFixed(1)}s</span>` + this.getStatsHTML();
+    document.getElementById('test-timer-bar').style.width = 100 - (elapsed / this.duration * 100) + '%';
+  }
+
+  getStatsHTML() { return ''; }
+
+  finish() {
+    document.removeEventListener('mousemove', this.boundMouseMove);
+    document.removeEventListener('mousedown', this.boundMouseDown);
+    document.removeEventListener('mouseup', this.boundMouseUp);
+    document.getElementById('test-stats').innerHTML = '';
+    document.getElementById('test-timer-bar').style.width = '0%';
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.drawFinishScreen();
+  }
+
+  drawFinishScreen() {
+    this.ctx.fillStyle = '#0d0d15';
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.fillStyle = '#fff';
+    this.ctx.font = 'bold 28px "Segoe UI"';
+    this.ctx.textAlign = 'center';
+    this.ctx.fillText('测试完成！', this.canvas.width / 2, this.canvas.height / 2 - 10);
+    this.ctx.font = '16px "Segoe UI"';
+    this.ctx.fillStyle = '#889';
+    this.ctx.fillText(this.getResultSummary(), this.canvas.width / 2, this.canvas.height / 2 + 30);
+  }
+
+  getResultSummary() { return ''; }
+
+  canvasPos(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = this.canvas.width / rect.width;
+    const scaleY = this.canvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+}
+
+// ==================== TEST 1: TRACKING ====================
+class TrackingTest extends TestBase {
+  init() {
+    this.hoverTime = 0;
+    this.totalFrames = 0;
+    this.targetRadius = 35;
+    this.pathTime = 0;
+    this.targetX = this.canvas.width / 2;
+    this.targetY = this.canvas.height / 2;
+  }
+
+  onMouseMove(e) {
+    super.onMouseMove(e);
+    const pos = this.canvasPos(e);
+    this.mouseCanvasX = pos.x;
+    this.mouseCanvasY = pos.y;
+  }
+
+  update(elapsed) {
+    this.pathTime = elapsed;
+    // Composite path: circle + sine wave
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    const ampX = this.canvas.width * 0.3;
+    const ampY = this.canvas.height * 0.32;
+    const speed = 0.7;
+    this.targetX = cx + Math.cos(this.pathTime * speed * 1.3) * ampX * 0.7 + Math.sin(this.pathTime * speed * 0.7) * ampX * 0.3;
+    this.targetY = cy + Math.sin(this.pathTime * speed) * ampY * 0.75 + Math.cos(this.pathTime * speed * 1.6) * ampY * 0.25;
+
+    // Hit test
+    if (this.mouseCanvasX !== undefined && this.mouseCanvasY !== undefined) {
+      const dx = this.mouseCanvasX - this.targetX;
+      const dy = this.mouseCanvasY - this.targetY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= this.targetRadius) {
+        this.hoverTime += 1 / 60;
+      }
+      this.totalFrames++;
+    }
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Trail
+    if (this.targetX !== undefined) {
+      ctx.fillStyle = 'rgba(233,69,96,0.08)';
+      ctx.beginPath();
+      ctx.arc(this.targetX, this.targetY, this.targetRadius + 8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Target
+    const isHovering = this.mouseCanvasX !== undefined && this.mouseCanvasY !== undefined &&
+      Math.sqrt((this.mouseCanvasX - this.targetX) ** 2 + (this.mouseCanvasY - this.targetY) ** 2) <= this.targetRadius;
+
+    const grad = ctx.createRadialGradient(this.targetX, this.targetY, this.targetRadius * 0.3, this.targetX, this.targetY, this.targetRadius);
+    grad.addColorStop(0, isHovering ? '#16c79a' : '#e94560');
+    grad.addColorStop(0.6, isHovering ? 'rgba(22,199,154,0.6)' : 'rgba(233,69,96,0.6)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.targetX, this.targetY, this.targetRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = isHovering ? '#16c79a' : '#e94560';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Crosshair tracking line from center
+    if (this.mouseCanvasX !== undefined) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(this.mouseCanvasX, this.mouseCanvasY);
+      ctx.lineTo(this.targetX, this.targetY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  getStatsHTML() {
+    const acc = this.totalFrames > 0 ? (this.hoverTime / (this.totalFrames / 60) * 100) : 0;
+    return `<span>🎯 ${acc.toFixed(1)}%</span>`;
+  }
+
+  getResultSummary() {
+    const elapsed = this.totalFrames / 60;
+    const acc = elapsed > 0 ? (this.hoverTime / elapsed * 100) : 0;
+    return `追踪精度: ${acc.toFixed(1)}%`;
+  }
+
+  finish() {
+    super.finish();
+    const elapsed = this.totalFrames / 60;
+    const acc = elapsed > 0 ? (this.hoverTime / elapsed * 100) : 0;
+    onTestComplete('tracking', { accuracy: acc, hoverTime: this.hoverTime, totalTime: elapsed });
+  }
+}
+
+// ==================== TEST 2: FLICK ====================
+class FlickTest extends TestBase {
+  init() {
+    this.hits = 0;
+    this.misses = 0;
+    this.reactionTimes = [];
+    this.target = null;
+    this.targetAppearTime = 0;
+    this.flashType = null;
+    this.flashTime = 0;
+    this.spawnTarget();
+  }
+
+  spawnTarget() {
+    const margin = 60;
+    const r = 30;
+    let x, y;
+    do {
+      x = margin + Math.random() * (this.canvas.width - margin * 2);
+      y = margin + Math.random() * (this.canvas.height - margin * 2);
+    } while (this.target && Math.hypot(x - this.target.x, y - this.target.y) < 150);
+    this.target = { x, y, r };
+    this.targetAppearTime = performance.now();
+    this.targetTimeout = performance.now() + 2000;
+    this.currentTargetHit = false;
+  }
+
+  onMouseDown(e) {
+    if (!this.target || this.currentTargetHit) return;
+    const pos = this.canvasPos(e);
+    const dist = Math.hypot(pos.x - this.target.x, pos.y - this.target.y);
+    if (dist <= this.target.r) {
+      this.hits++;
+      this.reactionTimes.push(performance.now() - this.targetAppearTime);
+      this.flashType = 'hit';
+      this.flashTime = performance.now();
+      this.currentTargetHit = true;
+    } else {
+      this.misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+    }
+  }
+
+  update(elapsed) {
+    if (this.currentTargetHit) {
+      if (performance.now() - this.flashTime > 200) {
+        this.spawnTarget();
+      }
+    } else if (performance.now() > this.targetTimeout) {
+      this.misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+      this.currentTargetHit = true;
+    }
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    if (this.flashType && performance.now() - this.flashTime < 250) {
+      ctx.fillStyle = this.flashType === 'hit' ? 'rgba(22,199,154,0.15)' : 'rgba(233,69,96,0.15)';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    if (performance.now() - this.flashTime >= 250) this.flashType = null;
+
+    if (!this.target) return;
+
+    const grad = ctx.createRadialGradient(this.target.x, this.target.y, this.target.r * 0.2, this.target.x, this.target.y, this.target.r);
+    grad.addColorStop(0, '#ffd93d');
+    grad.addColorStop(0.5, 'rgba(255,217,61,0.5)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.target.x, this.target.y, this.target.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#ffd93d';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Inner dot
+    ctx.fillStyle = '#0d0d15';
+    ctx.beginPath();
+    ctx.arc(this.target.x, this.target.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  getStatsHTML() {
+    return `<span>✅ ${this.hits}</span><span>❌ ${this.misses}</span>`;
+  }
+
+  getResultSummary() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const avgRt = this.reactionTimes.length > 0 ? this.reactionTimes.reduce((a,b) => a + b, 0) / this.reactionTimes.length : 0;
+    return `命中: ${this.hits}/${total} | 精度: ${acc.toFixed(1)}% | 反应: ${avgRt.toFixed(0)}ms`;
+  }
+
+  finish() {
+    super.finish();
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const avgRt = this.reactionTimes.length > 0 ? this.reactionTimes.reduce((a,b) => a + b, 0) / this.reactionTimes.length : 0;
+    onTestComplete('flick', { hits: this.hits, misses: this.misses, accuracy: acc, avgReaction: avgRt });
+  }
+}
+
+// ==================== TEST 3: 360° TURN ====================
+class Turn360Test extends TestBase {
+  init() {
+    this.totalDeltaX = 0;
+    this.totalDegrees = 0;
+    this.started = false;
+    this.phase = 'idle'; // idle, active, done
+    this.instruction = '将鼠标放在鼠标垫左边缘，然后点击画布开始';
+    this.cm360Result = null;
+  }
+
+  onMouseDown(e) {
+    const pos = this.canvasPos(e);
+    if (pos.x >= 0 && pos.x <= this.canvas.width && pos.y >= 0 && pos.y <= this.canvas.height) {
+      this.phase = 'active';
+      this.started = true;
+      this.startTime = performance.now();
+      this.totalDeltaX = 0;
+    }
+  }
+
+  onMouseMove(e) {
+    super.onMouseMove(e);
+    if (this.phase === 'active') {
+      this.totalDeltaX += Math.abs(e.movementX);
+      // Simulate rotation: use a sensitivity simulation factor
+      // For the test, we track raw mouse movement and let user input mousepad width
+      this.totalPixels = this.totalDeltaX;
+    }
+  }
+
+  update(elapsed) {
+    if (this.phase === 'active' && this.started && this.totalDeltaX < 3 && elapsed > 2) {
+      // If very little movement after 2 seconds of being active, stay in active
+    }
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    // Compass rose
+    const radius = Math.min(cx, cy) * 0.6;
+    ctx.strokeStyle = '#1e1e30';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#2a2a40';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Degree ticks
+    for (let i = 0; i < 36; i++) {
+      const angle = (i / 36) * Math.PI * 2 - Math.PI / 2;
+      const innerR = i % 9 === 0 ? radius * 0.8 : radius * 0.9;
+      ctx.strokeStyle = i % 9 === 0 ? '#667' : '#2a2a40';
+      ctx.lineWidth = i % 9 === 0 ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(angle) * innerR, cy + Math.sin(angle) * innerR);
+      ctx.lineTo(cx + Math.cos(angle) * radius, cy + Math.sin(angle) * radius);
+      ctx.stroke();
+    }
+
+    // Rotation indicator (needle)
+    const rotationRad = (this.totalDeltaX / 100) % (Math.PI * 2);
+    const needleLen = radius * 0.85;
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(rotationRad - Math.PI / 2) * needleLen, cy + Math.sin(rotationRad - Math.PI / 2) * needleLen);
+    ctx.stroke();
+
+    // Center dot
+    ctx.fillStyle = '#e94560';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rotation degrees label
+    const degDisplay = ((this.totalDeltaX / 100 * 360) % 360).toFixed(0);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 24px "Segoe UI"';
+    ctx.textAlign = 'center';
+    ctx.fillText(degDisplay + '°', cx, cy - radius - 30);
+
+    // Phase-specific text
+    if (this.phase === 'idle') {
+      ctx.fillStyle = '#ffd93d';
+      ctx.font = '18px "Segoe UI"';
+      ctx.fillText('点击画布开始，然后在鼠标垫上横向滑动鼠标', cx, cy + radius + 40);
+      ctx.fillStyle = '#889';
+      ctx.font = '14px "Segoe UI"';
+      ctx.fillText('建议：从鼠标垫左边缘滑到右边缘', cx, cy + radius + 65);
+    } else if (this.phase === 'active') {
+      ctx.fillStyle = '#16c79a';
+      ctx.font = '18px "Segoe UI"';
+      ctx.fillText('正在测量... 滑动你的鼠标！', cx, cy + radius + 40);
+      ctx.fillStyle = '#889';
+      ctx.font = '14px "Segoe UI"';
+      ctx.fillText('测试将在 ' + this.duration + ' 秒后自动结束，或点击画布手动结束', cx, cy + radius + 65);
+    }
+  }
+
+  onMouseDown(e) {
+    super.onMouseDown(e);
+    const pos = this.canvasPos(e);
+    if (pos.x >= 0 && pos.x <= this.canvas.width && pos.y >= 0 && pos.y <= this.canvas.height) {
+      if (this.phase === 'idle') {
+        this.phase = 'active';
+        this.started = true;
+        this.realStartTime = performance.now();
+        this.totalDeltaX = 0;
+      } else if (this.phase === 'active') {
+        // Manual end
+        if (this.cm360Result === null) this.calculateResult();
+        this.running = false;
+        this.finish();
+      }
+    }
+  }
+
+  calculateResult() {
+    const mousepadWidth = parseFloat(prompt('请输入你的鼠标垫宽度（厘米）：', '45')) || 45;
+    state.mousepadCm = mousepadWidth;
+    // Convert pixel movement to degrees. Assume 100 pixels ~ 360 degrees in our simulation
+    const simulatedDegrees = (this.totalDeltaX / 100) * 360;
+    const realDegrees = Math.max(simulatedDegrees, 30); // minimum 30 degrees
+    this.cm360Result = (mousepadWidth / realDegrees) * 360;
+  }
+
+  getStatsHTML() {
+    if (this.cm360Result) return `<span>📏 ${this.cm360Result.toFixed(1)} cm/360</span>`;
+    const deg = ((this.totalDeltaX / 100 * 360) % 360).toFixed(0);
+    return `<span>🔄 ${deg}°</span>`;
+  }
+
+  getResultSummary() {
+    return this.cm360Result ? `cm/360: ${this.cm360Result.toFixed(1)} cm` : '';
+  }
+
+  finish() {
+    if (this.cm360Result === null && this.totalDeltaX > 5) this.calculateResult();
+    if (this.cm360Result === null) this.cm360Result = 35; // fallback
+    super.finish();
+    onTestComplete('turn360', { cm360: this.cm360Result, pixelsMoved: this.totalDeltaX });
+  }
+}
+
+// ==================== TEST 4: GRIDSHOT ====================
+class GridshotTest extends TestBase {
+  init() {
+    this.hits = 0;
+    this.misses = 0;
+    this.targetR = 28;
+    this.activeCell = null;
+    this.flashType = null;
+    this.flashTime = 0;
+    this.cols = 3;
+    this.rows = 3;
+    this.cellW = this.canvas.width * 0.7 / this.cols;
+    this.cellH = this.canvas.height * 0.7 / this.rows;
+    this.offsetX = (this.canvas.width - this.cellW * this.cols) / 2 + this.cellW / 2;
+    this.offsetY = (this.canvas.height - this.cellH * this.rows) / 2 + this.cellH / 2;
+    this.spawnNext();
+  }
+
+  spawnNext() {
+    let cell;
+    do {
+      cell = { col: Math.floor(Math.random() * this.cols), row: Math.floor(Math.random() * this.rows) };
+    } while (this.activeCell && cell.col === this.activeCell.col && cell.row === this.activeCell.row);
+    const x = this.offsetX + cell.col * this.cellW;
+    const y = this.offsetY + cell.row * this.cellH;
+    this.activeCell = { ...cell, x, y };
+    this.activeStart = performance.now();
+    this.activeHit = false;
+  }
+
+  onMouseDown(e) {
+    if (!this.activeCell || this.activeHit) return;
+    const pos = this.canvasPos(e);
+    const dist = Math.hypot(pos.x - this.activeCell.x, pos.y - this.activeCell.y);
+    if (dist <= this.targetR) {
+      this.hits++;
+      this.flashType = 'hit';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnNext(); }, 80);
+    } else {
+      this.misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+    }
+  }
+
+  update(elapsed) {
+    if (!this.activeHit && performance.now() - this.activeStart > 2000) {
+      this.misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnNext(); }, 80);
+    }
+    if (this.flashType && performance.now() - this.flashTime > 250) this.flashType = null;
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Grid
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 10]);
+    for (let i = 0; i <= this.cols; i++) {
+      const x = this.offsetX - this.cellW / 2 + i * this.cellW;
+      ctx.beginPath();
+      ctx.moveTo(x, this.offsetY - this.cellH / 2);
+      ctx.lineTo(x, this.offsetY + (this.rows - 0.5) * this.cellH);
+      ctx.stroke();
+    }
+    for (let i = 0; i <= this.rows; i++) {
+      const y = this.offsetY - this.cellH / 2 + i * this.cellH;
+      ctx.beginPath();
+      ctx.moveTo(this.offsetX - this.cellW / 2, y);
+      ctx.lineTo(this.offsetX + (this.cols - 0.5) * this.cellW, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Inactive cells (dim dots)
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.activeCell && c === this.activeCell.col && r === this.activeCell.row) continue;
+        const x = this.offsetX + c * this.cellW;
+        const y = this.offsetY + r * this.cellH;
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.arc(x, y, this.targetR * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // Active target
+    if (this.activeCell) {
+      const grad = ctx.createRadialGradient(this.activeCell.x, this.activeCell.y, this.targetR * 0.2, this.activeCell.x, this.activeCell.y, this.targetR);
+      grad.addColorStop(0, '#ffd93d');
+      grad.addColorStop(0.6, 'rgba(255,217,61,0.4)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(this.activeCell.x, this.activeCell.y, this.targetR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffd93d';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Flash
+    if (this.flashType && performance.now() - this.flashTime < 250) {
+      ctx.fillStyle = this.flashType === 'hit' ? 'rgba(22,199,154,0.12)' : 'rgba(233,69,96,0.12)';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+  }
+
+  getStatsHTML() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    return `<span>✅ ${this.hits}</span><span>❌ ${this.misses}</span><span>🎯 ${acc.toFixed(0)}%</span>`;
+  }
+
+  getResultSummary() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const hps = this.hits / this.duration;
+    return `命中: ${this.hits} | 精度: ${acc.toFixed(1)}% | 速度: ${hps.toFixed(1)} HPS`;
+  }
+
+  finish() {
+    super.finish();
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const hps = this.hits / this.duration;
+    onTestComplete('gridshot', { hits: this.hits, misses: this.misses, accuracy: acc, hps: hps });
+  }
+}
+
+// ==================== TEST 5: MICRO-ADJUST ====================
+class MicroAdjustTest extends TestBase {
+  init() {
+    this.hits = 0;
+    this.misses = 0;
+    this.missDistances = [];
+    this.targetR = 14;
+    this.target = null;
+    this.flashType = null;
+    this.flashTime = 0;
+    this.targetsShown = 0;
+    this.maxTargets = 20;
+    this.spawnTarget();
+  }
+
+  spawnTarget() {
+    if (this.targetsShown >= this.maxTargets) return;
+    this.targetsShown++;
+
+    // Place target near center with small random offset (micro-adjustment range)
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    const maxOffset = 120;
+    const minOffset = 40;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = minOffset + Math.random() * (maxOffset - minOffset);
+    this.target = {
+      x: cx + Math.cos(angle) * dist,
+      y: cy + Math.sin(angle) * dist,
+      r: this.targetR
+    };
+    this.targetAppear = performance.now();
+    this.activeHit = false;
+    this.targetTimeout = performance.now() + 2000;
+
+    // Flash center briefly as reference
+    this.refFlashTime = performance.now();
+  }
+
+  onMouseDown(e) {
+    if (!this.target || this.activeHit) return;
+    const pos = this.canvasPos(e);
+    const dist = Math.hypot(pos.x - this.target.x, pos.y - this.target.y);
+    if (dist <= this.targetR) {
+      this.hits++;
+      this.flashType = 'hit';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnTarget(); }, 150);
+    } else {
+      this.misses++;
+      this.missDistances.push(dist);
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnTarget(); }, 250);
+    }
+  }
+
+  update(elapsed) {
+    if (!this.activeHit && this.target && performance.now() > this.targetTimeout) {
+      this.misses++;
+      const pos = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
+      const dist = Math.hypot(pos.x - this.target.x, pos.y - this.target.y);
+      this.missDistances.push(dist);
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnTarget(); }, 200);
+    }
+    if (this.flashType && performance.now() - this.flashTime > 250) this.flashType = null;
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Center reference
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    if (performance.now() - this.refFlashTime < 300) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (!this.target) return;
+
+    // Target
+    const grad = ctx.createRadialGradient(this.target.x, this.target.y, 2, this.target.x, this.target.y, this.targetR);
+    grad.addColorStop(0, '#e94560');
+    grad.addColorStop(0.7, 'rgba(233,69,96,0.5)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.target.x, this.target.y, this.targetR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#e94560';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Crosshair at center
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2, 6]);
+    ctx.beginPath();
+    ctx.moveTo(this.target.x - 25, this.target.y);
+    ctx.lineTo(this.target.x + 25, this.target.y);
+    ctx.moveTo(this.target.x, this.target.y - 25);
+    ctx.lineTo(this.target.x, this.target.y + 25);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  getStatsHTML() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    return `<span>✅ ${this.hits}/${total}</span><span>🎯 ${acc.toFixed(0)}%</span>`;
+  }
+
+  getResultSummary() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const avgDist = this.missDistances.length > 0 ? this.missDistances.reduce((a,b) => a + b,0) / this.missDistances.length : 0;
+    return `精度: ${acc.toFixed(1)}% | 偏差: ${avgDist.toFixed(1)}px`;
+  }
+
+  finish() {
+    super.finish();
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    const avgDist = this.missDistances.length > 0 ? this.missDistances.reduce((a,b) => a + b,0) / this.missDistances.length : 0;
+    onTestComplete('micro', { hits: this.hits, misses: this.misses, accuracy: acc, avgMissDist: avgDist });
+  }
+}
+
+// ==================== TEST 6: REACTIVE TRACKING ====================
+class ReactiveTrackingTest extends TestBase {
+  init() {
+    this.hoverTime = 0;
+    this.totalFrames = 0;
+    this.targetRadius = 35;
+    this.targetX = this.canvas.width / 2;
+    this.targetY = this.canvas.height / 2;
+    this.velX = 3;
+    this.velY = 2;
+    this.dirChanges = 0;
+    this.nextDirChange = 1.2; // change direction every ~1.2 seconds
+    this.speed = 3.5;
+  }
+
+  onMouseMove(e) {
+    super.onMouseMove(e);
+    const pos = this.canvasPos(e);
+    this.mouseCanvasX = pos.x;
+    this.mouseCanvasY = pos.y;
+  }
+
+  update(elapsed) {
+    // Random direction changes at intervals
+    if (elapsed >= this.nextDirChange) {
+      const angle = Math.random() * Math.PI * 2;
+      this.velX = Math.cos(angle) * this.speed;
+      this.velY = Math.sin(angle) * this.speed;
+      this.nextDirChange = elapsed + 0.8 + Math.random() * 1.4; // 0.8-2.2s interval
+      this.dirChanges++;
+
+      // Occasionally boost speed to simulate dash
+      if (Math.random() < 0.3) {
+        this.speed = 5 + Math.random() * 4;
+      } else {
+        this.speed = 2.5 + Math.random() * 2.5;
+      }
+    }
+
+    // Move and bounce off walls
+    this.targetX += this.velX;
+    this.targetY += this.velY;
+    const margin = this.targetRadius + 10;
+    if (this.targetX < margin) { this.targetX = margin; this.velX = Math.abs(this.velX); this.dirChanges++; }
+    if (this.targetX > this.canvas.width - margin) { this.targetX = this.canvas.width - margin; this.velX = -Math.abs(this.velX); this.dirChanges++; }
+    if (this.targetY < margin) { this.targetY = margin; this.velY = Math.abs(this.velY); this.dirChanges++; }
+    if (this.targetY > this.canvas.height - margin) { this.targetY = this.canvas.height - margin; this.velY = -Math.abs(this.velY); this.dirChanges++; }
+
+    // Hit test
+    if (this.mouseCanvasX !== undefined && this.mouseCanvasY !== undefined) {
+      const dx = this.mouseCanvasX - this.targetX;
+      const dy = this.mouseCanvasY - this.targetY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= this.targetRadius) {
+        this.hoverTime += 1 / 60;
+      }
+      this.totalFrames++;
+    }
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    // Trail showing recent path
+    const trailLen = 15;
+    for (let i = trailLen; i > 0; i--) {
+      const alpha = 0.03 * (1 - i / trailLen);
+      ctx.fillStyle = `rgba(255,107,107,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(
+        this.targetX - this.velX * i * 0.8,
+        this.targetY - this.velY * i * 0.8,
+        this.targetRadius * (1 - i / trailLen * 0.5),
+        0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+
+    const isHovering = this.mouseCanvasX !== undefined && this.mouseCanvasY !== undefined &&
+      Math.sqrt((this.mouseCanvasX - this.targetX) ** 2 + (this.mouseCanvasY - this.targetY) ** 2) <= this.targetRadius;
+
+    const grad = ctx.createRadialGradient(this.targetX, this.targetY, this.targetRadius * 0.3, this.targetX, this.targetY, this.targetRadius);
+    grad.addColorStop(0, isHovering ? '#16c79a' : '#ff6b6b');
+    grad.addColorStop(0.6, isHovering ? 'rgba(22,199,154,0.6)' : 'rgba(255,107,107,0.6)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.targetX, this.targetY, this.targetRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = isHovering ? '#16c79a' : '#ff6b6b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Direction indicator (small arrow)
+    const arrowAngle = Math.atan2(this.velY, this.velX);
+    const arrowR = this.targetRadius + 12;
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(
+      this.targetX + Math.cos(arrowAngle) * arrowR,
+      this.targetY + Math.sin(arrowAngle) * arrowR
+    );
+    ctx.lineTo(
+      this.targetX + Math.cos(arrowAngle + 2.5) * (arrowR + 8),
+      this.targetY + Math.sin(arrowAngle + 2.5) * (arrowR + 8)
+    );
+    ctx.moveTo(
+      this.targetX + Math.cos(arrowAngle) * arrowR,
+      this.targetY + Math.sin(arrowAngle) * arrowR
+    );
+    ctx.lineTo(
+      this.targetX + Math.cos(arrowAngle - 2.5) * (arrowR + 8),
+      this.targetY + Math.sin(arrowAngle - 2.5) * (arrowR + 8)
+    );
+    ctx.stroke();
+
+    // Dashed line from cursor to target
+    if (this.mouseCanvasX !== undefined) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(this.mouseCanvasX, this.mouseCanvasY);
+      ctx.lineTo(this.targetX, this.targetY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  getStatsHTML() {
+    const acc = this.totalFrames > 0 ? (this.hoverTime / (this.totalFrames / 60) * 100) : 0;
+    return `<span>🎯 ${acc.toFixed(1)}%</span><span>🔄 ${this.dirChanges}</span>`;
+  }
+
+  getResultSummary() {
+    const elapsed = this.totalFrames / 60;
+    const acc = elapsed > 0 ? (this.hoverTime / elapsed * 100) : 0;
+    return `追踪精度: ${acc.toFixed(1)}% | 变向次数: ${this.dirChanges}`;
+  }
+
+  finish() {
+    super.finish();
+    const elapsed = this.totalFrames / 60;
+    const acc = elapsed > 0 ? (this.hoverTime / elapsed * 100) : 0;
+    onTestComplete('reactive', { accuracy: acc, hoverTime: this.hoverTime, totalTime: elapsed, dirChanges: this.dirChanges });
+  }
+}
+
+// ==================== TEST 7: SPEED-ACCURACY CURVE ====================
+class SpeedAccuracyTest extends TestBase {
+  init() {
+    this.duration = 15; // longer to collect enough data points
+    this.hits = 0;
+    this.misses = 0;
+    this.targetR = 22;
+    this.target = null;
+    this.flashType = null;
+    this.flashTime = 0;
+    // Track accuracy by distance bracket
+    this.brackets = { near: {hits:0,misses:0}, mid: {hits:0,misses:0}, far: {hits:0,misses:0}, extreme: {hits:0,misses:0} };
+    this.spawnTarget();
+  }
+
+  spawnTarget() {
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    const maxRadius = Math.min(cx, cy) * 0.85;
+
+    // Cycle through distance brackets to ensure balanced data
+    const bracketKeys = ['near','mid','far','extreme'];
+    const total = this.hits + this.misses;
+    const bracketIdx = total % 4;
+    const bracket = bracketKeys[bracketIdx];
+
+    let distRange;
+    switch (bracket) {
+      case 'near': distRange = [50, 120]; break;
+      case 'mid': distRange = [120, 220]; break;
+      case 'far': distRange = [220, 340]; break;
+      case 'extreme': distRange = [340, maxRadius]; break;
+    }
+
+    const angle = Math.random() * Math.PI * 2;
+    const dist = distRange[0] + Math.random() * (distRange[1] - distRange[0]);
+    this.target = {
+      x: cx + Math.cos(angle) * Math.min(dist, maxRadius),
+      y: cy + Math.sin(angle) * Math.min(dist, maxRadius),
+      r: this.targetR,
+      bracket: bracket
+    };
+    this.targetAppear = performance.now();
+    this.activeHit = false;
+    this.targetTimeout = performance.now() + 2500;
+  }
+
+  onMouseDown(e) {
+    if (!this.target || this.activeHit) return;
+    const pos = this.canvasPos(e);
+    const dist = Math.hypot(pos.x - this.target.x, pos.y - this.target.y);
+    if (dist <= this.targetR) {
+      this.hits++;
+      this.brackets[this.target.bracket].hits++;
+      this.flashType = 'hit';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnTarget(); }, 200);
+    } else {
+      this.misses++;
+      this.brackets[this.target.bracket].misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+    }
+  }
+
+  update(elapsed) {
+    if (!this.activeHit && this.target && performance.now() > this.targetTimeout) {
+      this.misses++;
+      this.brackets[this.target.bracket].misses++;
+      this.flashType = 'miss';
+      this.flashTime = performance.now();
+      this.activeHit = true;
+      setTimeout(() => { if (this.running) this.spawnTarget(); }, 200);
+    }
+    if (this.flashType && performance.now() - this.flashTime > 250) this.flashType = null;
+  }
+
+  render(elapsed) {
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillStyle = '#0d0d15';
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+
+    // Distance zone rings
+    const zones = [
+      {r:120, color:'rgba(22,199,154,0.06)', label:'近距'},
+      {r:220, color:'rgba(255,217,61,0.06)', label:'中距'},
+      {r:340, color:'rgba(230,126,34,0.06)', label:'远距'},
+      {r:Math.min(cx,cy)*0.85, color:'rgba(233,69,96,0.06)', label:'极限'}
+    ];
+    zones.forEach(z => {
+      ctx.fillStyle = z.color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, z.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash([3, 10]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.font = '10px "Segoe UI"';
+      ctx.textAlign = 'center';
+      ctx.fillText(z.label, cx + z.r - 25, cy - 6);
+    });
+
+    // Center dot
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (this.flashType && performance.now() - this.flashTime < 250) {
+      ctx.fillStyle = this.flashType === 'hit' ? 'rgba(22,199,154,0.12)' : 'rgba(233,69,96,0.12)';
+      ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+    if (performance.now() - this.flashTime >= 250) this.flashType = null;
+
+    if (!this.target) return;
+
+    // Target color by bracket
+    const bracketColors = { near:'#16c79a', mid:'#ffd93d', far:'#e67e22', extreme:'#e94560' };
+    const targetColor = bracketColors[this.target.bracket] || '#ffd93d';
+
+    const grad = ctx.createRadialGradient(this.target.x, this.target.y, this.targetR * 0.2, this.target.x, this.target.y, this.targetR);
+    grad.addColorStop(0, targetColor);
+    grad.addColorStop(0.6, targetColor.replace(')',',0.4)').replace('rgb','rgba'));
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(this.target.x, this.target.y, this.targetR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = targetColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  getStatsHTML() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    return `<span>✅ ${this.hits}/${total}</span><span>🎯 ${acc.toFixed(0)}%</span>`;
+  }
+
+  getResultSummary() {
+    const total = this.hits + this.misses;
+    const acc = total > 0 ? (this.hits / total * 100) : 0;
+    return `综合精度: ${acc.toFixed(1)}%`;
+  }
+
+  finish() {
+    super.finish();
+    const total = this.hits + this.misses;
+    const overallAcc = total > 0 ? (this.hits / total * 100) : 0;
+
+    // Calculate per-bracket accuracy and find accuracy drop
+    let nearAcc = 0, farAcc = 0;
+    const b = this.brackets;
+    if (b.near.hits + b.near.misses > 0) nearAcc = b.near.hits / (b.near.hits + b.near.misses) * 100;
+    if (b.extreme.hits + b.extreme.misses > 0) farAcc = b.extreme.hits / (b.extreme.hits + b.extreme.misses) * 100;
+    const accuracyDrop = nearAcc - farAcc;
+
+    // Determine best range
+    let bestRange = '中距';
+    let bestAcc = 0;
+    for (const [key, val] of Object.entries(b)) {
+      const totalB = val.hits + val.misses;
+      if (totalB > 0) {
+        const accB = val.hits / totalB * 100;
+        if (accB > bestAcc) { bestAcc = accB; bestRange = {near:'近距',mid:'中距',far:'远距',extreme:'极限'}[key]; }
+      }
+    }
+
+    onTestComplete('speedcurve', {
+      overallAcc: overallAcc,
+      accuracyDrop: accuracyDrop,
+      bestRange: bestRange,
+      brackets: this.brackets,
+      nearAcc: nearAcc,
+      farAcc: farAcc
+    });
+  }
+}
+
+// ==================== RESULTS RENDERING ====================
+function renderResults() {
+  const grid = document.getElementById('results-grid');
+  grid.innerHTML = '';
+
+  const tr360 = state.testResults.turn360;
+  if (!tr360) return;
+  const baseCm360 = tr360.cm360;
+
+  // Show results for selected game + provide a dropdown for others
+  const gamesToShow = state.selectedGameId
+    ? [GAME_DB.find(g => g.id === state.selectedGameId)]
+    : GAME_DB;
+
+  gamesToShow.forEach(game => {
+    if (!game) return;
+    const result = generateSensitivity(game, baseCm360);
+    const card = document.createElement('div');
+    card.className = 'result-card';
+
+    let settingsHTML = result.settings.map(s => `
+      <tr>
+        <td>${s.label}</td>
+        <td class="sens-value">${s.value} <button class="copy-btn" onclick="copySens('${s.value}','${game.name} ${s.label}')">复制</button></td>
+      </tr>
+      <tr><td colspan="2" style="font-size:0.75rem;color:#667;font-weight:400;text-align:left">${s.desc || ''}</td></tr>
+    `).join('');
+
+    // Per-optic for APEX
+    let opticHTML = '';
+    if (result.perOpticMultipliers) {
+      opticHTML = `
+        <tr><td colspan="2" style="color:#e94560;font-weight:700;padding-top:12px;">Per Optic ADS 倍率:</td></tr>
+        ${result.perOpticMultipliers.map(o => `
+          <tr>
+            <td>${o.optic} 倍镜</td>
+            <td class="sens-value">${o.multiplier.toFixed(3)} ${o.capped ? '⚠️' : ''}
+              <button class="copy-btn" onclick="copySens('${o.multiplier.toFixed(3)}','${game.name} ${o.optic} ADS')">复制</button>
+            </td>
+          </tr>
+        `).join('')}
+        ${result.perOpticMultipliers.some(o => o.capped) ? '<tr><td colspan="2" style="font-size:0.75rem;color:#e67e22;">⚠️ 高倍镜(6x+)受限于游戏最大倍率2.0，无法达到完美1:1</td></tr>' : ''}
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="game-title">
+        ${game.icon} ${game.name}
+        <span class="ttk-tag ${game.ttk}">${game.ttk==='short'?'短TTK':'长TTK'}</span>
+      </div>
+      <div style="margin-bottom:10px">
+        <span class="cm360-badge ${result.classification.cls}">${result.classification.label} · ${result.cm360.toFixed(1)} cm/360</span>
+        <span style="margin-left:8px;font-size:0.85rem;color:#889">eDPI: ${result.eDPI}</span>
+        ${game.needsFOV ? `<span style="margin-left:8px;font-size:0.85rem;color:#889">FOV: ${state.fov}</span>` : ''}
+      </div>
+      <table class="result-table">
+        ${settingsHTML}
+        ${opticHTML}
+        <tr style="border-top:1px solid #2a2a40">
+          <td>cm/360</td>
+          <td>${result.cm360.toFixed(1)} cm</td>
+        </tr>
+        <tr>
+          <td>eDPI</td>
+          <td>${result.eDPI}</td>
+        </tr>
+        <tr>
+          <td style="font-size:0.75rem;color:#667">DPI</td>
+          <td style="font-size:0.75rem;color:#667">${state.dpi}</td>
+        </tr>
+      </table>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e1e30">
+        <div style="font-size:0.75rem;color:#667;margin-bottom:8px">测试成绩摘要</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.78rem">
+          ${getTestSummaryHTML()}
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function getTestSummaryHTML() {
+  const lines = [];
+  const r = state.testResults;
+  if (r.tracking) lines.push(`<span style="color:#889">追踪</span><span style="color:#fff">${r.tracking.accuracy.toFixed(1)}%</span>`);
+  if (r.flick) lines.push(`<span style="color:#889">定位</span><span style="color:#fff">${r.flick.accuracy.toFixed(1)}% / ${r.flick.avgReaction.toFixed(0)}ms</span>`);
+  if (r.turn360) lines.push(`<span style="color:#889">cm/360</span><span style="color:#ffd93d">${r.turn360.cm360.toFixed(1)} cm</span>`);
+  if (r.gridshot) lines.push(`<span style="color:#889">网格</span><span style="color:#fff">${r.gridshot.hits} 命中 / ${r.gridshot.hps.toFixed(1)} HPS</span>`);
+  if (r.micro) lines.push(`<span style="color:#889">微调</span><span style="color:#fff">${r.micro.accuracy.toFixed(1)}% / 偏差${r.micro.avgMissDist.toFixed(0)}px</span>`);
+  if (r.reactive) lines.push(`<span style="color:#889">反应追踪</span><span style="color:#fff">${r.reactive.accuracy.toFixed(1)}% / ${r.reactive.dirChanges}变向</span>`);
+  if (r.speedcurve) {
+    const sc = r.speedcurve;
+    lines.push(`<span style="color:#889">速度-精度</span><span style="color:#fff">${sc.overallAcc.toFixed(1)}% / 降幅${sc.accuracyDrop.toFixed(0)}%</span>`);
+    lines.push(`<span style="color:#889">最佳距离</span><span style="color:#ffd93d">${sc.bestRange}</span>`);
+  }
+  return lines.join('');
+}
+
+function copySens(text, label) {
+  navigator.clipboard.writeText(String(text)).then(() => {
+    // Brief visual feedback handled by button state
+    const btns = document.querySelectorAll('.copy-btn');
+    btns.forEach(b => { if (b.textContent === '复制') b.textContent = '已复制!'; });
+    setTimeout(() => { btns.forEach(b => { if (b.textContent === '已复制!') b.textContent = '复制'; }); }, 1200);
+  });
+}
+
+// ==================== ADVICE RENDERING ====================
+function renderAdvice() {
+  const list = document.getElementById('advice-list');
+  list.innerHTML = '';
+
+  const advices = [];
+  const tr = state.testResults.tracking || {};
+  const fl = state.testResults.flick || {};
+  const gs = state.testResults.gridshot || {};
+  const ma = state.testResults.micro || {};
+  const tr360 = state.testResults.turn360 || {};
+  const rt = state.testResults.reactive || {};
+  const sc = state.testResults.speedcurve || {};
+
+  // Tracking advice
+  if (tr.accuracy !== undefined) {
+    if (tr.accuracy < 40) {
+      advices.push({icon:'⚠️',title:'追踪能力较弱',text:'你的追踪精度低于40%，建议在游戏中降低灵敏度以提高稳定性。每天可在 Aimlabs 中练习"Spheretrack"或"Strafetrack"场景来提升追踪能力。推荐的练习频率：每天15-20分钟。'});
+    } else if (tr.accuracy < 65) {
+      advices.push({icon:'📊',title:'追踪能力中等',text:'追踪精度在中等水平。建议保持当前灵敏度并多加练习平滑追踪。尝试在 APEX 训练场中追踪移动假人，专注保持准星稳定。'});
+    } else {
+      advices.push({icon:'✅',title:'追踪能力优秀',text:'追踪精度非常出色！你的鼠标控制能力良好，可以适当尝试更高的灵敏度来提升转身速度，同时保持现有追踪水平。'});
+    }
+  }
+
+  // Flick advice
+  if (fl.accuracy !== undefined) {
+    if (fl.avgReaction > 500) {
+      advices.push({icon:'🐌',title:'反应速度偏慢',text:'平均反应时间超过500ms。除了练习定位外，确保你的显示器刷新率足够高(≥144Hz)，并在游戏中开启 NVIDIA Reflex 低延迟模式。'});
+    }
+    if (fl.accuracy < 55) {
+      advices.push({icon:'🎯',title:'定位精度需提升',text:'定位精度低于55%，建议练习小幅度的 flick shot。在 Aimlabs 中选择"Sixshot"或"Gridshot Precision"场景，专注精度而非速度。'});
+    } else if (fl.accuracy > 80 && fl.avgReaction < 350) {
+      advices.push({icon:'⚡',title:'定位能力极佳',text:'你的 flick 定位又快又准！这种反应速度和精度在短TTK游戏（如CS2、Valorant）中非常有优势。'});
+    }
+  }
+
+  // Gridshot advice
+  if (gs.hps !== undefined) {
+    if (gs.hps < 2) {
+      advices.push({icon:'🐢',title:'切换目标速度偏慢',text:'网格射击速度较低。练习时可以尝试先保证精度，再逐步提升速度。节奏感很重要——找到匀速点击的节奏。'});
+    }
+  }
+
+  // Micro-adjustment advice
+  if (ma.accuracy !== undefined) {
+    if (ma.avgMissDist > 40) {
+      advices.push({icon:'🔍',title:'微调能力较弱',text:'微小目标偏差较大，说明在高灵敏度下手指/手腕的微操控制不足。可以尝试略微降低灵敏度(提升5-10%的cm/360)，或使用"Microshot"场景专门练习。'});
+    } else if (ma.accuracy > 75) {
+      advices.push({icon:'💎',title:'精细操控出色',text:'微调精度很高，说明你对手腕/手指的微小移动有出色的控制力。这在长TTK游戏的头线追踪中非常有价值。'});
+    }
+  }
+
+  // Reactive tracking advice
+  if (rt.accuracy !== undefined) {
+    if (rt.accuracy < 35) {
+      advices.push({icon:'🌪️',title:'反应式追踪较弱',text:'面对突然变向的目标追踪精度低于35%。这是长TTK游戏（APEX、OW2）的核心技能。建议在 Aimlabs 中练习"Strafetrack"或"VCT NA"场景，专注预判目标变向——尝试在目标变向的瞬间就做出反应。'});
+    } else if (rt.accuracy < 60) {
+      advices.push({icon:'🏃',title:'反应式追踪中等',text:'对突然变向的目标有一定追踪能力，但还有提升空间。注意：不要盯着准星看，要盯着目标看——用余光感知准星位置，这能更快响应方向变化。'});
+    } else {
+      advices.push({icon:'🔥',title:'反应式追踪优秀',text:'即使目标频繁变向，你也能保持高精度追踪。这是高水平玩家的标志性能力，在 APEX 等高速对抗游戏中会给你带来巨大优势。'});
+    }
+  }
+
+  // Speed-accuracy curve advice
+  if (sc.overallAcc !== undefined) {
+    if (sc.accuracyDrop > 25) {
+      advices.push({icon:'📉',title:'远距离精度骤降',text:`近距到极限距离精度下降了${sc.accuracyDrop.toFixed(0)}%，说明你的灵敏度可能偏高——远距离的微小像素调整难以精确控制。建议降低灵敏度（增加5-15%的cm/360），或专门练习远距离微调。`});
+    } else if (sc.accuracyDrop > 12) {
+      advices.push({icon:'📊',title:'距离精度有梯度下降',text:`精度随距离下降${sc.accuracyDrop.toFixed(0)}%，属于正常范围。你在${sc.bestRange}距离表现最佳，可以考虑调整灵敏度让这个区间覆盖你最常交火的距离。`});
+    } else if (sc.accuracyDrop <= 12 && sc.overallAcc > 60) {
+      advices.push({icon:'🎯',title:'全距离精度稳定',text:'从近到远精度几乎一致，说明你的灵敏度选择非常合理——在不同交火距离都能保持一致的瞄准能力。保持现有设置即可。'});
+    }
+    if (sc.bestRange === '极限' && sc.overallAcc > 50) {
+      advices.push({icon:'🔭',title:'远距离专精',text:'你在极限距离的精度最高，适合担任狙击手/长枪位。在 CS2 中可以偏重 AWP，在 APEX 中善用长倍镜武器。'});
+    }
+  }
+
+  // General advice
+  if (tr360.cm360 !== undefined) {
+    const game = state.selectedGameId ? GAME_DB.find(g => g.id === state.selectedGameId) : null;
+    if (game && game.ttk === 'short' && tr360.cm360 < 28) {
+      advices.push({icon:'💡',title:'灵敏度偏高（短TTK游戏）',text:`当前 cm/360 为 ${tr360.cm360.toFixed(1)}cm，对于${game.name}这类战术射击游戏来说偏高。建议将 cm/360 调整到 35-55cm 范围，这样在中远距离对枪时更容易进行微调。`});
+    }
+    if (game && game.ttk === 'long' && tr360.cm360 > 50) {
+      advices.push({icon:'💡',title:'灵敏度偏低（长TTK游戏）',text:`当前 cm/360 为 ${tr360.cm360.toFixed(1)}cm，对于${game.name}这类追踪射击游戏来说偏低。建议将 cm/360 调整到 25-40cm 范围，以便更灵活地追踪快速移动的目标。`});
+    }
+  }
+
+  advices.push({icon:'🖱️',title:'鼠标设置建议',text:'确保关闭 Windows 的"提高指针精确度"（鼠标加速）。在游戏内开启"原始输入"(Raw Input)。使用 1000Hz 轮询率（如果鼠标支持）。这些设置可以保证灵敏度的线性输出。'});
+  advices.push({icon:'📏',title:'鼠标垫建议',text:`根据你的 cm/360 (${tr360.cm360 ? tr360.cm360.toFixed(1) : 'N/A'} cm)，建议鼠标垫宽度至少为 cm/360 × 1.5 = ${tr360.cm360 ? (tr360.cm360 * 1.5).toFixed(0) : 'N/A'} cm，以保证在游戏中可以舒适地完成180°转身。`});
+  advices.push({icon:'🔄',title:'跨游戏一致性',text:'保持所有FPS游戏中的 cm/360 一致可以最大化肌肉记忆的迁移效果。使用本页面的灵敏度结果作为各游戏的初始设定，然后根据游戏节奏进行微调。'});
+
+  advices.forEach(a => {
+    const div = document.createElement('div');
+    div.className = 'advice-item';
+    div.innerHTML = `
+      <div class="advice-icon">${a.icon}</div>
+      <div class="advice-content">
+        <div class="advice-title">${a.title}</div>
+        <div class="advice-text">${a.text}</div>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+// ==================== CROSSHAIR FOLLOW ====================
+document.addEventListener('mousemove', function(e) {
+  const crosshair = document.getElementById('crosshair');
+  if (crosshair.style.display === 'block') {
+    crosshair.style.left = e.clientX + 'px';
+    crosshair.style.top = e.clientY + 'px';
+  }
+});
+
+// ==================== RESIZE HANDLER ====================
+window.addEventListener('resize', () => {
+  const canvas = document.getElementById('test-canvas');
+  if (canvas && currentTest) {
+    const wrap = document.getElementById('test-canvas-wrap');
+    canvas.width = wrap.clientWidth;
+    canvas.height = wrap.clientHeight;
+  }
+});
+
+// ==================== UTILS ====================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function resetAll() {
+  state = {
+    currentStep: 1,
+    dpi: 800,
+    selectedGameId: null,
+    fov: 110,
+    testResults: {},
+    allTestsDone: false,
+    mousepadCm: 45
+  };
+  document.getElementById('dpi-input').value = 800;
+  document.querySelectorAll('.dpi-preset').forEach(b => b.classList.remove('selected'));
+  document.querySelector('.dpi-preset[onclick="selectDPI(800)"]')?.classList.add('selected');
+  document.querySelectorAll('.game-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('fov-section').classList.add('hidden');
+  document.getElementById('btn-start-tests').disabled = true;
+  document.getElementById('btn-see-results').disabled = true;
+  document.getElementById('crosshair').style.display = 'none';
+  document.getElementById('test-arena').classList.add('hidden');
+  document.getElementById('test-list').classList.remove('hidden');
+  document.querySelectorAll('.card').forEach(c => { c.classList.remove('active','done'); });
+  document.getElementById('step-dpi').classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ==================== INIT ====================
+function init() {
+  renderGameSelection();
+  document.getElementById('dpi-input').addEventListener('change', function() {
+    state.dpi = parseInt(this.value) || 800;
+  });
+}
+
+init();
+</script>
+</body>
+</html>
