@@ -297,13 +297,38 @@ const GAME_DB = [
       {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 鼠标灵敏度'},
       {key:'scoped',label:'开镜灵敏度',desc:'设置 → 控制 → 聚焦/瞄准灵敏度倍率',defaultVal:1.0}
     ]},
-  { id:'apex', name:'APEX Legends', icon:'🦾', ttk:'long', yaw:0.022, fov:110, fovType:'slider', sensDecimals:1, sensRange:[0.1,20],
+  { id:'apex', name:'APEX Legends', icon:'🦾', ttk:'long', yaw:0.022, fov:110, fovType:'slider', sensDecimals:6, sensSliderDecimals:1, sensRange:[0.1,20],
     fovRange:[70,110], needsFOV:true,
+    configKey: 'mouse_sensitivity',
+    configPath: 'C:\\Users\\[用户名]\\Saved Games\\Respawn\\Apex\\local\\settings.cfg',
     settings:[
-      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 鼠标/键盘 → 鼠标灵敏度'},
-      {key:'ads',label:'ADS 瞄准灵敏度',desc:'设置 → 鼠标/键盘 → ADS鼠标灵敏度倍率',defaultVal:1.0}
+      {key:'hipfire',label:'常规灵敏度（游戏内滑块）',desc:'设置 → 鼠标/键盘 → 鼠标灵敏度（滑块仅显示1位小数）'},
+      {key:'hipfire_cfg',label:'常规灵敏度（配置文件精确值）',desc:'粘贴到 settings.cfg 的 mouse_sensitivity 项（支持6位小数）',isConfig:true},
+      {key:'ads',label:'ADS 鼠标灵敏度（全局倍率）',desc:'设置 → 鼠标/键盘 → ADS鼠标灵敏度（建议保持 1.0，用下方逐个倍镜微调）',defaultVal:1.0}
     ],
-    perOptic:true, opticScales:{'1x':1.0,'2x':0.9,'3x':0.75,'4x':0.55,'6x':0.40,'8x':0.30,'10x':0.20} },
+    perOptic:true,
+    opticScales:{
+      '1x 全息/铁瞄':1.0,
+      '2x HCOG "Bruiser"':0.9,
+      '3x HCOG "Ranger"':0.75,
+      '4x ACOG':0.55,
+      '6x 狙击镜':0.40,
+      '8x 狙击镜':0.30,
+      '10x 数字威胁':0.20
+    },
+    variableOptics: [
+      {name:'2x-4x 可变瞄准镜', minZoom:'2x', maxZoom:'4x'},
+      {name:'4x-8x 可变狙击镜', minZoom:'4x', maxZoom:'8x'},
+      {name:'4x-10x 数字威胁', minZoom:'4x', maxZoom:'10x'}
+    ],
+    apexNotes: [
+      '⚠️ 游戏内滑块只显示1位小数（如 "1.5"），但配置文件支持精确到6位小数',
+      '📁 配置文件路径: %USERPROFILE%\\Saved Games\\Respawn\\Apex\\local\\settings.cfg',
+      '🔧 用记事本打开 settings.cfg，找到 mouse_sensitivity 项，粘贴精确值',
+      '🎯 确保"高级视角控制(ALC)"处于关闭状态，否则常规灵敏度滑块被忽略',
+      '⚙️ Per Optic ADS: 在游戏设置中开启"逐个倍镜ADS灵敏度"，填入下方倍率',
+      '💡 全局 ADS 倍率建议保持 1.0，用逐个倍镜微调来适配不同瞄具'
+    ]},
   { id:'ow2', name:'守望先锋2', icon:'🛡️', ttk:'long', yaw:0.0066, fov:103, fovType:'fixed', sensDecimals:2, sensRange:[0.01,100],
     settings:[
       {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 鼠标灵敏度'},
@@ -320,6 +345,30 @@ const GAME_DB = [
       {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制器 → 鼠标灵敏度'},
       {key:'ads_low',label:'ADS 低倍率',desc:'低倍镜开镜灵敏度倍率',defaultVal:1.0},
       {key:'ads_high',label:'ADS 高倍率',desc:'高倍镜开镜灵敏度倍率',defaultVal:1.0}
+    ]},
+  { id:'deadlock', name:'Deadlock', icon:'👻', ttk:'long', yaw:0.022, fov:100, fovType:'fixed', sensDecimals:2, sensRange:[0.05,8],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 鼠标 → 鼠标灵敏度'},
+      {key:'zoom',label:'开镜灵敏度 (Zoom)',desc:'设置 → 鼠标 → 缩放灵敏度倍率',defaultVal:1.0}
+    ]},
+  { id:'pubg', name:'PUBG', icon:'🍗', ttk:'mixed', yaw:0.022, fov:90, fovType:'fixed', sensDecimals:0, sensRange:[1,100],
+    settings:[
+      {key:'hipfire',label:'常规灵敏度',desc:'设置 → 控制 → 常规灵敏度'},
+      {key:'ads',label:'瞄准灵敏度 (ADS)',desc:'设置 → 控制 → 瞄准灵敏度',defaultVal:50},
+      {key:'scope2x',label:'2倍镜灵敏度',desc:'设置 → 控制 → 2倍镜灵敏度',defaultVal:50},
+      {key:'scope4x',label:'4倍镜灵敏度',desc:'设置 → 控制 → 4倍镜灵敏度',defaultVal:50},
+      {key:'scope8x',label:'8倍镜灵敏度',desc:'设置 → 控制 → 8倍镜灵敏度',defaultVal:50}
+    ]},
+  { id:'marvel', name:'Marvel Rivals', icon:'🕷️', ttk:'long', yaw:0.022, fov:100, fovType:'fixed', sensDecimals:2, sensRange:[0.01,40],
+    settings:[
+      {key:'hipfire',label:'水平灵敏度',desc:'设置 → 键盘/鼠标 → 水平灵敏度'},
+      {key:'hipfire_vert',label:'垂直灵敏度',desc:'设置 → 键盘/鼠标 → 垂直灵敏度',defaultVal:'same'},
+      {key:'ads',label:'ADS灵敏度倍率',desc:'设置 → 键盘/鼠标 → 瞄准灵敏度倍率',defaultVal:1.0}
+    ]},
+  { id:'thefinals', name:'THE FINALS', icon:'💰', ttk:'long', yaw:0.001, fov:90, fovType:'fixed', sensDecimals:0, sensRange:[1,100],
+    settings:[
+      {key:'hipfire',label:'鼠标灵敏度',desc:'设置 → 鼠标 → 鼠标灵敏度'},
+      {key:'ads_zoom',label:'瞄准灵敏度 (Zoom)',desc:'设置 → 鼠标 → 瞄准灵敏度倍率',defaultVal:50}
     ]}
 ];
 
@@ -407,29 +456,40 @@ function generateSensitivity(game, baseCm360) {
 
   game.settings.forEach(s => {
     if (s.key === 'hipfire') {
-      result.settings.push({...s, value: result.hipfire});
-    } else if (s.key === 'zoom' && game.id === 'cs2') {
+      result.settings.push({...s, value: game.configKey ? result.sliderSens : result.hipfire});
+    } else if (s.key === 'hipfire_cfg') {
+      // APEX config file exact precision value
+      result.settings.push({...s, value: result.configSens || result.hipfire});
+    } else if (s.key === 'hipfire_vert') {
+      // Vertical sens = same as horizontal (1:1 ratio recommended)
+      result.settings.push({...s, value: result.hipfire, label: '垂直灵敏度 (推荐与水平一致)'});
+    } else if (s.key === 'zoom' && (game.id === 'cs2' || game.id === 'deadlock')) {
       result.settings.push({...s, value: 1.0});
     } else if (s.key === 'scoped' && game.id === 'valorant') {
       result.settings.push({...s, value: 1.0});
-    } else if (s.key === 'ads' && game.id === 'apex') {
-      result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'ads' && (game.id === 'apex' || game.id === 'r6s' || game.id === 'marvel' || game.id === 'pubg')) {
+      result.settings.push({...s, value: game.id === 'pubg' || game.id === 'r6s' ? 50 : 1.0});
+    } else if (s.key === 'scope2x' || s.key === 'scope4x' || s.key === 'scope8x') {
+      // PUBG scope sensitivities — scale proportionally to hipfire
+      result.settings.push({...s, value: result.hipfire});
     } else if (s.key === 'scope_ana' && game.id === 'ow2') {
       result.settings.push({...s, value: 37.89});
     } else if (s.key === 'scope_widow' && game.id === 'ow2') {
       result.settings.push({...s, value: 37.89});
-    } else if (s.key === 'ads' && game.id === 'r6s') {
-      result.settings.push({...s, value: 50});
     } else if (s.key === 'ads_low' && game.id === 'cod_wz') {
       result.settings.push({...s, value: 1.0});
     } else if (s.key === 'ads_high' && game.id === 'cod_wz') {
       result.settings.push({...s, value: 1.0});
+    } else if (s.key === 'ads_zoom' && game.id === 'thefinals') {
+      result.settings.push({...s, value: 50});
     }
   });
 
   // APEX per-optic
   if (game.perOptic) {
     result.perOpticMultipliers = [];
+    result.variableOptics = game.variableOptics || [];
+    result.apexNotes = game.apexNotes || [];
     const opticScales = game.opticScales;
     for (const [label, fovScale] of Object.entries(opticScales)) {
       const ideal = 1 / fovScale;
@@ -438,9 +498,18 @@ function generateSensitivity(game, baseCm360) {
         optic: label,
         fovScale: fovScale,
         multiplier: capped,
+        idealMultiplier: +ideal.toFixed(3),
         capped: ideal > 2.0
       });
     }
+  }
+
+  // Store config file precision value for APEX
+  if (game.configKey) {
+    result.configSens = +clampedSens.toFixed(game.sensDecimals);
+    result.sliderSens = +clampedSens.toFixed(game.sensSliderDecimals || game.sensDecimals);
+    result.configKey = game.configKey;
+    result.configPath = game.configPath;
   }
 
   return result;
@@ -1789,16 +1858,43 @@ function renderResults() {
     let opticHTML = '';
     if (result.perOpticMultipliers) {
       opticHTML = `
-        <tr><td colspan="2" style="color:#e94560;font-weight:700;padding-top:12px;">Per Optic ADS 倍率:</td></tr>
+        <tr><td colspan="2" style="color:#e94560;font-weight:700;padding-top:12px;">逐个倍镜 ADS 灵敏度（在游戏中开启"逐镜ADS"后填入）：</td></tr>
         ${result.perOpticMultipliers.map(o => `
           <tr>
-            <td>${o.optic} 倍镜</td>
-            <td class="sens-value">${o.multiplier.toFixed(3)} ${o.capped ? '⚠️' : ''}
-              <button class="copy-btn" onclick="copySens('${o.multiplier.toFixed(3)}','${game.name} ${o.optic} ADS')">复制</button>
+            <td>${o.optic}</td>
+            <td class="${o.capped ? '' : 'sens-value'}">
+              <span style="${o.capped ? 'color:#e67e22' : 'color:#ffd93d'};font-weight:700;font-family:monospace">${o.multiplier.toFixed(3)}</span>
+              ${o.capped ? `<span style="color:#e67e22;font-size:0.75rem">⚠️ 理想值${o.idealMultiplier}→已顶满2.0上限</span>` : ''}
+              <button class="copy-btn" onclick="copySens('${o.multiplier.toFixed(3)}','${game.name} ${o.optic.replace(/'/g,"\\'")} ADS')">复制</button>
             </td>
           </tr>
         `).join('')}
-        ${result.perOpticMultipliers.some(o => o.capped) ? '<tr><td colspan="2" style="font-size:0.75rem;color:#e67e22;">⚠️ 高倍镜(6x+)受限于游戏最大倍率2.0，无法达到完美1:1</td></tr>' : ''}
+        <tr><td colspan="2" style="font-size:0.78rem;color:#aab;padding-top:4px;padding-bottom:8px;line-height:1.4">
+          💡 设置方法：开启"逐个倍镜ADS灵敏度"(Per Optic ADS Sensitivity)，将上方倍率填入对应瞄具
+        </td></tr>
+      `;
+    }
+
+    // Variable optics info for APEX
+    let variableHTML = '';
+    if (result.variableOptics && result.variableOptics.length > 0) {
+      variableHTML = `
+        <tr><td colspan="2" style="color:#889;font-weight:600;padding-top:10px;">可变倍率瞄具参考：</td></tr>
+        ${result.variableOptics.map(v => `
+          <tr><td colspan="2" style="font-size:0.78rem;color:#767;line-height:1.4">
+            ${v.name}：使用最常用倍率的对应值（${v.minZoom} → ${v.maxZoom}）
+          </td></tr>
+        `).join('')}
+      `;
+    }
+
+    // APEX notes
+    let notesHTML = '';
+    if (result.apexNotes && result.apexNotes.length > 0) {
+      notesHTML = `
+        <div style="margin-top:10px;padding:10px 12px;background:rgba(233,69,96,0.06);border:1px solid rgba(233,69,96,0.15);border-radius:8px">
+          ${result.apexNotes.map(n => `<div style="font-size:0.78rem;color:#aab;line-height:1.6;margin-bottom:4px">${n}</div>`).join('')}
+        </div>
       `;
     }
 
@@ -1815,6 +1911,7 @@ function renderResults() {
       <table class="result-table">
         ${settingsHTML}
         ${opticHTML}
+        ${variableHTML}
         <tr style="border-top:1px solid #2a2a40">
           <td>cm/360</td>
           <td>${result.cm360.toFixed(1)} cm</td>
@@ -1828,6 +1925,7 @@ function renderResults() {
           <td style="font-size:0.75rem;color:#667">${state.dpi}</td>
         </tr>
       </table>
+      ${notesHTML}
       <div style="margin-top:14px;padding-top:12px;border-top:1px solid #1e1e30">
         <div style="font-size:0.75rem;color:#667;margin-bottom:8px">测试成绩摘要</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:0.78rem">
@@ -1957,6 +2055,16 @@ function renderAdvice() {
   advices.push({icon:'🖱️',title:'鼠标设置建议',text:'确保关闭 Windows 的"提高指针精确度"（鼠标加速）。在游戏内开启"原始输入"(Raw Input)。使用 1000Hz 轮询率（如果鼠标支持）。这些设置可以保证灵敏度的线性输出。'});
   advices.push({icon:'📏',title:'鼠标垫建议',text:`根据你的 cm/360 (${tr360.cm360 ? tr360.cm360.toFixed(1) : 'N/A'} cm)，建议鼠标垫宽度至少为 cm/360 × 1.5 = ${tr360.cm360 ? (tr360.cm360 * 1.5).toFixed(0) : 'N/A'} cm，以保证在游戏中可以舒适地完成180°转身。`});
   advices.push({icon:'🔄',title:'跨游戏一致性',text:'保持所有FPS游戏中的 cm/360 一致可以最大化肌肉记忆的迁移效果。使用本页面的灵敏度结果作为各游戏的初始设定，然后根据游戏节奏进行微调。'});
+
+  // APEX-specific advice
+  if (game && game.id === 'apex') {
+    advices.push({icon:'🎯',title:'APEX 专属：配置文件精确设置',text:'APEX 游戏内滑块只显示1位小数，但要达到精确的 cm/360，必须编辑 settings.cfg 文件。路径：%USERPROFILE%\\Saved Games\\Respawn\\Apex\\local\\settings.cfg，找到 mouse_sensitivity 一项，替换为上方"配置文件精确值"。修改前请备份原文件。'});
+    advices.push({icon:'⚙️',title:'APEX 专属：ALC 必须关闭',text:'确保游戏设置中的"高级视角控制(ALC)"处于关闭状态。ALC 开启时会完全忽略常规灵敏度滑块，灵敏度由 ALC 的独立参数控制，与 cm/360 公式不兼容。'});
+    advices.push({icon:'🔭',title:'APEX 专属：逐个倍镜 ADS',text:'开启"逐个倍镜ADS灵敏度"后，将上方每个倍镜的倍率填入。1x全息保持1.0，2x设为~1.111，3x设为~1.333，4x设为~1.818。6x/8x/10x 由于引擎上限2.0无法达到完美1:1——这是游戏本身限制，不是计算错误。'});
+    if (state.fov !== 110) {
+      advices.push({icon:'👁️',title:'APEX 专属：FOV 对瞄准的影响',text:`你选择了 FOV ${state.fov}。FOV 越大目标越小，对鼠标精度的要求越高。FOV 110 是大多数 PC 职业选手的选择（最大视野），但如果你主要用狙或远射武器，FOV 90-100 可能更合适。即使 cm/360 不变，FOV 改变后瞄准"手感"会有差异，建议在训练场用不同 FOV 打同一距离靶子对比。`});
+    }
+  }
 
   advices.forEach(a => {
     const div = document.createElement('div');
